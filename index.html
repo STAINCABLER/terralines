@@ -1,0 +1,1530 @@
+<!DOCTYPE html>
+<!--
+  index.html — Topografie-Generator Frontend
+  ============================================
+  Material You (M3) Dark-Theme, rein CSS/JS implementiert.
+  Keine externen UI-Frameworks – alle Komponenten handgeschrieben nach M3-Spec.
+
+  Struktur:
+    ┌── Top App Bar ─────────────────────────────────────────────┐
+    │   Preset-Chips                                              │
+    ├── Sidebar (320px) ──────┬── Preview Area ─────────────────┤
+    │   Accordion-Sektionen   │   Canvas + Metadaten            │
+    │   · Hintergrund         │   Generate-FAB                  │
+    │   · Linien              │                                  │
+    │   · Terrain             │                                  │
+    │   · Gitter              │                                  │
+    │   · Ausgabe             │                                  │
+    │   Export-Button         │                                  │
+    └─────────────────────────┴──────────────────────────────────┘
+-->
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Topografie-Generator</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+  <link rel="shortcut icon" href="/static/favicon.svg" />
+
+  <!-- Google Fonts: Roboto Flex (M3-Referenz-Schrift) + Roboto Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100..900&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <script src="https://unpkg.com/lucide@0.419.0/dist/umd/lucide.min.js"></script>
+</head>
+
+<body>
+<div class="app-shell">
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       TOP APP BAR
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <header class="top-app-bar">
+    <div class="app-bar-icon"><i data-lucide="map" class="lucide"></i></div>
+    <h1 class="app-bar-title">Terra<span>Lines</span></h1>
+    <div class="app-bar-divider"></div>
+    <span class="app-bar-label">Topografischer Mustergenerator</span>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       PRESET-CHIPS-BAR
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <div class="preset-bar">
+    <div class="preset-actions">
+      <button
+        class="chip"
+        onclick="exportCurrentSettings()"
+        title="Aktuelle Einstellungen exportieren"
+        aria-label="Aktuelle Einstellungen exportieren"
+      >
+        <i data-lucide="download" class="lucide lucide-sm"></i>
+      </button>
+      <label
+        class="chip"
+        for="import-presets-input"
+        style="cursor:pointer;"
+        title="Einstellungen importieren"
+        aria-label="Einstellungen importieren"
+      >
+        <i data-lucide="upload" class="lucide lucide-sm"></i>
+      </label>
+      <input type="file" id="import-presets-input" accept="application/json"
+             style="display:none;" onchange="importUserPresets(this)" />
+    </div>
+    <div class="preset-divider" aria-hidden="true"></div>
+    <div class="templates-scroll" id="templates-scroll">
+      <div class="templates-track">
+        <span class="preset-label">Templates</span>
+        <div class="templates-group" id="server-preset-chips"></div>
+        <div class="templates-group" id="user-preset-chips"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       SIDEBAR
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <!-- ── 1. Hintergrund ──────────────────────────────────────────────── -->
+      <div class="section open" id="sec-background">
+        <div class="section-header" onclick="toggleSection('sec-background')">
+          <span class="section-icon"><i data-lucide="palette" class="lucide lucide-sm"></i></span>
+          <span class="section-title">Hintergrund</span>
+          <span class="section-chevron">▼</span>
+        </div>
+        <div class="section-body">
+          <div class="ctrl-row">
+            <span class="ctrl-label">Farbe</span>
+            <div class="color-picker-wrapper">
+              <div class="color-swatch" id="swatch-bg_color">
+                <input type="color" id="picker-bg_color" value="#0d0d0d" onchange="handleColorChange('bg_color', this.value)" />
+              </div>
+              <input class="color-hex" id="hex-bg_color" type="text" value="#0d0d0d"
+                     maxlength="7" onchange="handleHexInput('bg_color', this.value)" />
+            </div>
+          </div>
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">Verlauf-Modus</span>
+            <select class="m3-select" id="sel-bg_mode"
+                    onchange="handleSelect('bg_mode', this.value); toggleGradientControls()">
+              <option value="flat">Keine (flat)</option>
+              <option value="linear">Linear</option>
+              <option value="radial">Radial</option>
+            </select>
+          </div>
+
+          <div id="gradient-controls" style="display:none;">
+            <div class="ctrl-row">
+              <span class="ctrl-label">Zweite Farbe</span>
+              <div class="color-picker-wrapper">
+                <div class="color-swatch" id="swatch-bg_color_2">
+                  <input type="color" id="picker-bg_color_2" value="#1a1a1a"
+                         onchange="handleColorChange('bg_color_2', this.value)" />
+                </div>
+                <input class="color-hex" id="hex-bg_color_2" type="text" value="#1a1a1a"
+                       maxlength="7" onchange="handleHexInput('bg_color_2', this.value)" />
+              </div>
+            </div>
+
+            <div class="ctrl-row" id="gradient-angle-row">
+              <span class="ctrl-label">Winkel</span>
+              <div class="ctrl-input-group">
+                <input type="range" class="m3-slider" id="sl-gradient_angle"
+                       min="0" max="360" step="5" value="135"
+                       oninput="handleSlider('gradient_angle', this.value, 0)" />
+                <input type="number" class="m3-input" id="in-gradient_angle"
+                       min="0" max="360" step="5" value="135"
+                       onchange="handleInput('gradient_angle', this.value)" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── 2. Linien ───────────────────────────────────────────────────── -->
+      <div class="section open" id="sec-lines">
+        <div class="section-header" onclick="toggleSection('sec-lines')">
+          <span class="section-icon"><i data-lucide="activity" class="lucide lucide-sm"></i></span>
+          <span class="section-title">Linien</span>
+          <span class="section-chevron">▼</span>
+        </div>
+        <div class="section-body">
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">Linienfarbe</span>
+            <div class="color-picker-wrapper">
+              <div class="color-swatch" id="swatch-line_color">
+                <input type="color" id="picker-line_color" value="#2d2d2d" onchange="handleColorChange('line_color', this.value)" />
+              </div>
+              <input class="color-hex" id="hex-line_color" type="text" value="#2d2d2d"
+                     maxlength="7" onchange="handleHexInput('line_color', this.value)" />
+            </div>
+          </div>
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">Hervorhebunsfarbe</span>
+            <div class="color-picker-wrapper">
+              <div class="color-swatch" id="swatch-highlight_color">
+                <input type="color" id="picker-highlight_color" value="#3a3a3a" onchange="handleColorChange('highlight_color', this.value)" />
+              </div>
+              <input class="color-hex" id="hex-highlight_color" type="text" value="#3a3a3a"
+                     maxlength="7" onchange="handleHexInput('highlight_color', this.value)" />
+            </div>
+          </div>
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">Linienstärke</span>
+            <div class="ctrl-input-group">
+              <input type="range" class="m3-slider" id="sl-line_width"
+                     min="0.2" max="4" step="0.1" value="0.7"
+                     oninput="handleSlider('line_width', this.value, 1)" />
+              <input type="number" class="m3-input" id="in-line_width"
+                     min="0.2" max="4" step="0.1" value="0.7"
+                     onchange="handleInput('line_width', this.value)" />
+            </div>
+          </div>
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">Hervorheb.-Stärke</span>
+            <div class="ctrl-input-group">
+              <input type="range" class="m3-slider" id="sl-highlight_width"
+                     min="0.2" max="6" step="0.1" value="1.4"
+                     oninput="handleSlider('highlight_width', this.value, 1)" />
+              <input type="number" class="m3-input" id="in-highlight_width"
+                     min="0.2" max="6" step="0.1" value="1.4"
+                     onchange="handleInput('highlight_width', this.value)" />
+            </div>
+          </div>
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">Hervorheb. alle N</span>
+            <div class="ctrl-input-group">
+              <input type="range" class="m3-slider" id="sl-highlight_every"
+                     min="0" max="20" step="1" value="5"
+                     oninput="handleSlider('highlight_every', this.value, 0)" />
+              <input type="number" class="m3-input" id="in-highlight_every"
+                     min="0" max="20" step="1" value="5"
+                     onchange="handleInput('highlight_every', this.value)" />
+            </div>
+          </div>
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">Deckkraft</span>
+            <div class="ctrl-input-group">
+              <input type="range" class="m3-slider" id="sl-line_alpha"
+                     min="0.05" max="1" step="0.05" value="1"
+                     oninput="handleSlider('line_alpha', this.value, 2)" />
+              <input type="number" class="m3-input" id="in-line_alpha"
+                     min="0.05" max="1" step="0.05" value="1"
+                     onchange="handleInput('line_alpha', this.value)" />
+            </div>
+          </div>
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">Stil</span>
+            <select class="m3-select" id="sel-line_style" onchange="handleSelect('line_style', this.value)">
+              <option value="solid">Durchgehend (solid)</option>
+              <option value="dashed">Gestrichelt (dashed)</option>
+              <option value="dotted">Gepunktet (dotted)</option>
+            </select>
+          </div>
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">Gestrichelt alle N</span>
+            <div class="ctrl-input-group">
+              <input type="range" class="m3-slider" id="sl-dash_every"
+                     min="0" max="15" step="1" value="0"
+                     oninput="handleSlider('dash_every', this.value, 0)" />
+              <input type="number" class="m3-input" id="in-dash_every"
+                     min="0" max="15" step="1" value="0"
+                     onchange="handleInput('dash_every', this.value)" />
+            </div>
+          </div>
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">Farbmodus</span>
+            <select class="m3-select" id="sel-color_mode" onchange="handleSelect('color_mode', this.value)">
+              <option value="flat">Einheitlich (flat)</option>
+              <option value="elevation">Nach Höhe (elevation)</option>
+            </select>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ── 3. Terrain & Rauschen ───────────────────────────────────────── -->
+      <div class="section open" id="sec-terrain">
+        <div class="section-header" onclick="toggleSection('sec-terrain')">
+          <span class="section-icon"><i data-lucide="mountain" class="lucide lucide-sm"></i></span>
+          <span class="section-title">Terrain & Rauschen</span>
+          <span class="section-chevron">▼</span>
+        </div>
+        <div class="section-body">
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">Quelle</span>
+            <select class="m3-select" id="sel-terrain-source"
+                    onchange="handleTerrainSourceChange(this.value)">
+              <option value="noise">fBm Noise</option>
+              <option value="heightmap">Bild hochladen</option>
+            </select>
+          </div>
+
+          <div id="heightmap-upload-area" style="display:none; margin-bottom:14px;">
+            <label style="
+                display:flex; flex-direction:column; align-items:center;
+                justify-content:center; gap:8px;
+                height:80px;
+                border:1px dashed var(--md-sys-color-outline-variant);
+                border-radius:var(--md-shape-medium);
+                cursor:pointer;
+                font-size:12px;
+                color:var(--md-sys-color-on-surface-variant);
+                transition:background .15s ease;
+            " id="heightmap-drop-label"
+               onmouseover="this.style.background='rgba(255,255,255,0.04)'"
+               onmouseout="this.style.background='transparent'">
+              <span style="font-size:24px;">🖼️</span>
+              <span id="heightmap-filename">PNG, JPG, WebP — klicken oder droppen</span>
+              <input type="file" accept="image/*" id="heightmap-input"
+                     style="display:none" onchange="handleHeightmapUpload(this)" />
+            </label>
+          </div>
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">Konturebenen</span>
+            <div class="ctrl-input-group">
+              <input type="range" class="m3-slider" id="sl-levels"
+                     min="3" max="40" step="1" value="15"
+                     oninput="handleSlider('levels', this.value, 0)" />
+              <input type="number" class="m3-input" id="in-levels"
+                     min="3" max="40" step="1" value="15"
+                     onchange="handleInput('levels', this.value)" />
+            </div>
+          </div>
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">Skala (Zoom)</span>
+            <div class="ctrl-input-group">
+              <input type="range" class="m3-slider" id="sl-scale"
+                     min="30" max="800" step="10" value="200"
+                     oninput="handleSlider('scale', this.value, 0)" />
+              <input type="number" class="m3-input" id="in-scale"
+                     min="30" max="800" step="10" value="200"
+                     onchange="handleInput('scale', this.value)" />
+            </div>
+          </div>
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">Oktaven</span>
+            <div class="ctrl-input-group">
+              <input type="range" class="m3-slider" id="sl-octaves"
+                     min="1" max="10" step="1" value="6"
+                     oninput="handleSlider('octaves', this.value, 0)" />
+              <input type="number" class="m3-input" id="in-octaves"
+                     min="1" max="10" step="1" value="6"
+                     onchange="handleInput('octaves', this.value)" />
+            </div>
+          </div>
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">Persistenz</span>
+            <div class="ctrl-input-group">
+              <input type="range" class="m3-slider" id="sl-persistence"
+                     min="0.1" max="0.95" step="0.05" value="0.55"
+                     oninput="handleSlider('persistence', this.value, 2)" />
+              <input type="number" class="m3-input" id="in-persistence"
+                     min="0.1" max="0.95" step="0.05" value="0.55"
+                     onchange="handleInput('persistence', this.value)" />
+            </div>
+          </div>
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">Lakunarität</span>
+            <div class="ctrl-input-group">
+              <input type="range" class="m3-slider" id="sl-lacunarity"
+                     min="1.1" max="4.0" step="0.1" value="2.0"
+                     oninput="handleSlider('lacunarity', this.value, 1)" />
+              <input type="number" class="m3-input" id="in-lacunarity"
+                     min="1.1" max="4.0" step="0.1" value="2.0"
+                     onchange="handleInput('lacunarity', this.value)" />
+            </div>
+          </div>
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">Glättung</span>
+            <div class="ctrl-input-group">
+              <input type="range" class="m3-slider" id="sl-smoothing"
+                     min="0" max="5" step="0.1" value="1.0"
+                     oninput="handleSlider('smoothing', this.value, 1)" />
+              <input type="number" class="m3-input" id="in-smoothing"
+                     min="0" max="5" step="0.1" value="1.0"
+                     onchange="handleInput('smoothing', this.value)" />
+            </div>
+          </div>
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">Seed (Zufall)</span>
+            <div class="ctrl-input-group">
+              <input type="range" class="m3-slider" id="sl-seed"
+                     min="0" max="9999" step="1" value="42"
+                     oninput="handleSlider('seed', this.value, 0)" />
+              <input type="number" class="m3-input" id="in-seed"
+                     min="0" max="9999" step="1" value="42"
+                     onchange="handleInput('seed', this.value)"
+                     style="width:60px;" />
+              <button class="btn-icon-sm" onclick="randomizeSeed()" title="Zufälligen Seed würfeln">
+                <span id="dice-seed">
+                  <i data-lucide="dice-5" class="lucide lucide-sm"></i>
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">Zweite Schicht</span>
+            <label class="m3-switch-track" id="sw-layer2_enabled"
+                   onclick="toggleSwitch('layer2_enabled'); toggleLayer2Controls()">
+              <input type="checkbox" id="cb-layer2_enabled" />
+              <span class="m3-switch-thumb"></span>
+            </label>
+          </div>
+
+          <div id="layer2-controls" style="display:none;">
+            <div class="ctrl-row">
+              <span class="ctrl-label">Schicht-2-Skala</span>
+              <div class="ctrl-input-group">
+                <input type="range" class="m3-slider" id="sl-layer2_scale"
+                       min="10" max="400" step="10" value="80"
+                       oninput="handleSlider('layer2_scale', this.value, 0)" />
+                <input type="number" class="m3-input" id="in-layer2_scale"
+                       min="10" max="400" step="10" value="80"
+                       onchange="handleInput('layer2_scale', this.value)" />
+              </div>
+            </div>
+
+            <div class="ctrl-row">
+              <span class="ctrl-label">Gewichtung</span>
+              <div class="ctrl-input-group">
+                <input type="range" class="m3-slider" id="sl-layer2_weight"
+                       min="0.05" max="1.0" step="0.05" value="0.35"
+                       oninput="handleSlider('layer2_weight', this.value, 2)" />
+                <input type="number" class="m3-input" id="in-layer2_weight"
+                       min="0.05" max="1.0" step="0.05" value="0.35"
+                       onchange="handleInput('layer2_weight', this.value)" />
+              </div>
+            </div>
+
+            <div class="ctrl-row">
+              <span class="ctrl-label">Seed-Versatz</span>
+              <div class="ctrl-input-group">
+                <input type="range" class="m3-slider" id="sl-layer2_seed_offset"
+                       min="1" max="5000" step="1" value="1000"
+                       oninput="handleSlider('layer2_seed_offset', this.value, 0)" />
+                <input type="number" class="m3-input" id="in-layer2_seed_offset"
+                       min="1" max="5000" step="1" value="1000"
+                       onchange="handleInput('layer2_seed_offset', this.value)" />
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ── 4. Gitter-Overlay ───────────────────────────────────────────── -->
+      <div class="section" id="sec-grid">
+        <div class="section-header" onclick="toggleSection('sec-grid')">
+          <span class="section-icon"><i data-lucide="grid-3x3" class="lucide lucide-sm"></i></span>
+          <span class="section-title">Gitter-Overlay</span>
+          <span class="section-chevron">▼</span>
+        </div>
+        <div class="section-body">
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">Gitter aktiv</span>
+            <label class="m3-switch-track" id="sw-show_grid">
+              <input type="checkbox" id="cb-show_grid" onchange="handleSwitchChange('show_grid', this.checked)" />
+              <span class="m3-switch-thumb"></span>
+            </label>
+          </div>
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">Gitterfarbe</span>
+            <div class="color-picker-wrapper">
+              <div class="color-swatch" id="swatch-grid_color">
+                <input type="color" id="picker-grid_color" value="#ffffff" onchange="handleColorChange('grid_color', this.value)" />
+              </div>
+              <input class="color-hex" id="hex-grid_color" type="text" value="#ffffff"
+                     maxlength="7" onchange="handleHexInput('grid_color', this.value)" />
+            </div>
+          </div>
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">Gitterstil</span>
+            <select class="m3-select" id="sel-grid_style" onchange="handleSelect('grid_style', this.value)">
+              <option value="cross">Kreuzmarker (+)</option>
+              <option value="dashes">Gestrichelt</option>
+              <option value="lines">Volllinien</option>
+            </select>
+          </div>
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">Unterteilungen</span>
+            <div class="ctrl-input-group">
+              <input type="range" class="m3-slider" id="sl-grid_divisions"
+                     min="3" max="20" step="1" value="8"
+                     oninput="handleSlider('grid_divisions', this.value, 0)" />
+              <input type="number" class="m3-input" id="in-grid_divisions"
+                     min="3" max="20" step="1" value="8"
+                     onchange="handleInput('grid_divisions', this.value)" />
+            </div>
+          </div>
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">Deckkraft</span>
+            <div class="ctrl-input-group">
+              <input type="range" class="m3-slider" id="sl-grid_alpha"
+                     min="0.05" max="1" step="0.05" value="0.25"
+                     oninput="handleSlider('grid_alpha', this.value, 2)" />
+              <input type="number" class="m3-input" id="in-grid_alpha"
+                     min="0.05" max="1" step="0.05" value="0.25"
+                     onchange="handleInput('grid_alpha', this.value)" />
+            </div>
+          </div>
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">Linienbreite</span>
+            <div class="ctrl-input-group">
+              <input type="range" class="m3-slider" id="sl-grid_line_width"
+                     min="0.2" max="3" step="0.1" value="0.5"
+                     oninput="handleSlider('grid_line_width', this.value, 1)" />
+              <input type="number" class="m3-input" id="in-grid_line_width"
+                     min="0.2" max="3" step="0.1" value="0.5"
+                     onchange="handleInput('grid_line_width', this.value)" />
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ── 5. Ausgabe ──────────────────────────────────────────────────── -->
+      <div class="section" id="sec-output">
+        <div class="section-header" onclick="toggleSection('sec-output')">
+          <span class="section-icon"><i data-lucide="ruler" class="lucide lucide-sm"></i></span>
+          <span class="section-title">Ausgabe</span>
+          <span class="section-chevron">▼</span>
+        </div>
+        <div class="section-body">
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">Breite (px)</span>
+            <div class="ctrl-input-group">
+              <input type="range" class="m3-slider" id="sl-width"
+                     min="400" max="7680" step="80" value="1920"
+                     oninput="handleSlider('width', this.value, 0)" />
+              <input type="number" class="m3-input" id="in-width"
+                     min="400" max="7680" step="80" value="1920"
+                     onchange="handleInput('width', this.value)" style="width:64px;" />
+            </div>
+          </div>
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">Höhe (px)</span>
+            <div class="ctrl-input-group">
+              <input type="range" class="m3-slider" id="sl-height"
+                     min="300" max="4320" step="60" value="1080"
+                     oninput="handleSlider('height', this.value, 0)" />
+              <input type="number" class="m3-input" id="in-height"
+                     min="300" max="4320" step="60" value="1080"
+                     onchange="handleInput('height', this.value)" style="width:64px;" />
+            </div>
+          </div>
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">DPI</span>
+            <select class="m3-select" id="sel-dpi" onchange="handleSelect('dpi', parseInt(this.value))">
+              <option value="72">72 dpi (Web)</option>
+              <option value="96" selected>96 dpi (Screen)</option>
+              <option value="150">150 dpi</option>
+              <option value="300">300 dpi (Print)</option>
+            </select>
+          </div>
+
+          <div class="ctrl-row">
+            <span class="ctrl-label">Vorschau-Skala</span>
+            <select class="m3-select" id="sel-preview_scale" onchange="handleSelect('preview_scale', parseFloat(this.value))">
+              <option value="0.25">25% (schnellste)</option>
+              <option value="0.5" selected>50% (Standard)</option>
+              <option value="0.75">75%</option>
+              <option value="1.0">100% (langsam)</option>
+            </select>
+          </div>
+
+        </div>
+      </div>
+
+    </div><!-- .sidebar-inner -->
+
+    <!-- Sidebar-Footer: Aktionsbuttons -->
+    <div class="sidebar-footer">
+      <button class="btn-filled" id="btn-generate" onclick="generatePreview()">
+        <i data-lucide="zap" class="lucide lucide-sm"></i>
+        Vorschau generieren
+      </button>
+      <button class="btn-outlined" onclick="randomizeAll()">
+        <span id="dice-all">
+          <i data-lucide="shuffle" class="lucide lucide-sm"></i>
+        </span>
+        Komplett zufällig
+      </button>
+      <button class="btn-outlined" id="btn-export" onclick="exportImage()">
+        <i data-lucide="download" class="lucide lucide-sm"></i>
+        PNG exportieren (Vollauflösung)
+      </button>
+      <button class="btn-outlined" id="btn-export-svg" onclick="exportSVG()">
+        <i data-lucide="download" class="lucide lucide-sm"></i>
+        SVG exportieren
+      </button>
+    </div>
+  </aside>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       PREVIEW AREA
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <main class="preview-area">
+
+    <div class="preview-canvas-wrapper" id="preview-wrapper">
+      <!-- Skeleton (initialer Zustand) -->
+      <div class="preview-skeleton" id="preview-skeleton">
+        <span class="skeleton-icon"><i data-lucide="map" class="lucide lucide-lg"></i></span>
+        <span class="skeleton-text">Klicke "Vorschau generieren" oder ändere Parameter</span>
+      </div>
+
+      <!-- Generiertes Bild -->
+      <img class="preview-img" id="preview-img" alt="Topografie-Vorschau"
+           style="display:none;" />
+
+      <!-- Ladeoverlay -->
+      <div class="loading-overlay" id="loading-overlay">
+        <svg class="progress-ring" viewBox="0 0 50 50">
+          <circle class="progress-ring-circle" cx="25" cy="25" r="20"/>
+        </svg>
+        <span class="loading-text" id="loading-text">Generiere…</span>
+      </div>
+    </div>
+
+    <!-- Statusleiste -->
+    <div class="preview-statusbar" id="statusbar" style="display:none;">
+      <span>Auflösung: <span class="status-value" id="status-res">–</span></span>
+      <span>Renderzeit: <span class="status-value" id="status-time">–</span></span>
+      <span>Seed: <span class="status-value" id="status-seed">–</span></span>
+    </div>
+
+  </main>
+</div><!-- .app-shell -->
+
+<!-- Snackbar Toast -->
+<div class="snackbar" id="snackbar"></div>
+
+<!-- ═════════════════════════════════════════════════════════════════════════
+     JavaScript — Zustandsverwaltung & API-Kommunikation
+     ═════════════════════════════════════════════════════════════════════════ -->
+<script nonce="{{ csp_nonce }}">
+  /* ===========================================================================
+     ZUSTANDSVERWALTUNG
+     =========================================================================== */
+
+  /** Aktueller Parametersatz – wird aus Flask-Template initialisiert */
+  let params = {{ default_params | tojson }};
+
+  /** Alle Presets vom Server */
+  let SERVER_TEMPLATES = {{ presets | tojson }};
+
+  /** Debounce-Timer für Auto-Generate */
+  let autoGenTimer = null;
+  const AUTO_GEN_DELAY_MS = 900;  // ms nach letzter Änderung
+
+  /** Merkt ob gerade ein Request läuft */
+  let isGenerating = false;
+
+  /** Terrain-Quelle und optionaler Upload-Inhalt */
+  let currentHeightmapBytes = null;
+  let terrainSource = 'noise';
+
+  /** Zoom/Pan-Zustand */
+  const viewport = {
+    scale: 1.0,
+    x: 0,
+    y: 0,
+    isDragging: false,
+    dragStartX: 0,
+    dragStartY: 0,
+    dragStartVX: 0,
+    dragStartVY: 0,
+  };
+  const ZOOM_MIN = 0.5;
+  const ZOOM_MAX = 8.0;
+  const ZOOM_STEP = 0.12;
+
+  const LOCALSTORAGE_KEY = 'terralines_user_presets';
+
+
+  /* ===========================================================================
+     URL-HASH SERIALISIERUNG
+     =========================================================================== */
+
+  function saveParamsToHash() {
+    const json = JSON.stringify(params);
+    const encoded = btoa(unescape(encodeURIComponent(json)));
+    history.replaceState(null, '', '#' + encoded);
+  }
+
+  function loadParamsFromHash() {
+    const hash = window.location.hash.slice(1);
+    if (!hash) return null;
+    try {
+      const json = decodeURIComponent(escape(atob(hash)));
+      return JSON.parse(json);
+    } catch (e) {
+      console.warn('URL-Hash ungültig, ignoriert.', e);
+      return null;
+    }
+  }
+
+
+  /* ===========================================================================
+     SLIDER-TRACKING (visuelles Füllgrad-Update)
+     =========================================================================== */
+
+  /**
+   * Aktualisiert den Slider-Hintergrund basierend auf dem aktuellen Wert.
+   * Erzeugt einen "gefüllten" Look entsprechend M3-Spec.
+   */
+  function updateSliderTrack(sliderId) {
+    const slider = document.getElementById(sliderId);
+    if (!slider) return;
+    const min = parseFloat(slider.min);
+    const max = parseFloat(slider.max);
+    const val = parseFloat(slider.value);
+    const pct = ((val - min) / (max - min)) * 100;
+    slider.style.background = `linear-gradient(to right,
+      var(--md-sys-color-primary) ${pct}%,
+      var(--md-sys-color-surface-container-highest) ${pct}%)`;
+  }
+
+  /** Initialisiert alle Slider-Tracks beim Laden */
+  function initSliderTracks() {
+    document.querySelectorAll('.m3-slider').forEach(s => {
+      updateSliderTrack(s.id);
+    });
+  }
+
+
+  /* ===========================================================================
+     PARAMETER-HANDLER
+     =========================================================================== */
+
+  /**
+   * Verarbeitet Slider-Änderung: aktualisiert params, zugehöriges Zahleninput
+   * und schiebt Auto-Generate an.
+   *
+   * @param {string} key       - Parameter-Key
+   * @param {string} rawValue  - Rohwert als String
+   * @param {number} decimals  - Anzahl Dezimalstellen für Anzeige
+   */
+  function handleSlider(key, rawValue, decimals = 0) {
+    const val = decimals > 0 ? parseFloat(rawValue) : parseInt(rawValue, 10);
+    params[key] = val;
+
+    // Zahleninput synchronisieren
+    const numInput = document.getElementById(`in-${key}`);
+    if (numInput) numInput.value = val.toFixed(decimals);
+
+    // Slider-Farbe aktualisieren
+    updateSliderTrack(`sl-${key}`);
+
+    scheduleAutoGenerate();
+  }
+
+  /**
+   * Verarbeitet direkte Zahleingaben: synchronisiert Slider und params.
+   */
+  function handleInput(key, rawValue) {
+    const slider = document.getElementById(`sl-${key}`);
+    const isFloat = slider && (parseFloat(slider.step) < 1);
+    const val = isFloat ? parseFloat(rawValue) : parseInt(rawValue, 10);
+
+    params[key] = val;
+
+    if (slider) {
+      slider.value = val;
+      updateSliderTrack(`sl-${key}`);
+    }
+
+    scheduleAutoGenerate();
+  }
+
+  /**
+   * Verarbeitet Select-Änderungen.
+   */
+  function handleSelect(key, value) {
+    params[key] = value;
+    scheduleAutoGenerate();
+  }
+
+  /**
+   * Verarbeitet Color-Picker Änderungen: aktualisiert Swatch, Hex-Input, params.
+   */
+  function handleColorChange(key, hexValue) {
+    params[key] = hexValue;
+
+    // Swatch-Hintergrund aktualisieren
+    const swatch = document.getElementById(`swatch-${key}`);
+    if (swatch) swatch.style.backgroundColor = hexValue;
+
+    // Hex-Textfeld synchronisieren
+    const hexInput = document.getElementById(`hex-${key}`);
+    if (hexInput) hexInput.value = hexValue;
+
+    scheduleAutoGenerate();
+  }
+
+  /**
+   * Verarbeitet manuelle Hex-Eingabe im Textfeld.
+   */
+  function handleHexInput(key, hexValue) {
+    // Nur gültige Hex-Farben akzeptieren
+    if (!/^#[0-9a-fA-F]{6}$/.test(hexValue)) return;
+    params[key] = hexValue;
+
+    const picker = document.getElementById(`picker-${key}`);
+    if (picker) picker.value = hexValue;
+
+    const swatch = document.getElementById(`swatch-${key}`);
+    if (swatch) swatch.style.backgroundColor = hexValue;
+
+    scheduleAutoGenerate();
+  }
+
+  /**
+   * Verarbeitet Toggle-Switch Klicks.
+   */
+  function handleSwitchChange(key, checked) {
+    params[key] = !!checked;
+    const track = document.getElementById(`sw-${key}`);
+    if (track) {
+      if (params[key]) track.classList.add('checked');
+      else track.classList.remove('checked');
+    }
+    scheduleAutoGenerate();
+  }
+
+  function toggleSwitch(key) {
+    const checkbox = document.getElementById(`cb-${key}`);
+    if (!checkbox) return;
+    checkbox.checked = !checkbox.checked;
+    handleSwitchChange(key, checkbox.checked);
+  }
+
+
+  /* ===========================================================================
+     PRESETS
+     =========================================================================== */
+
+  /**
+   * Wendet ein Preset an: merged Preset-Werte in params und aktualisiert die UI.
+   */
+  function applyPreset(presetKey) {
+    const template = SERVER_TEMPLATES[presetKey];
+    if (!template || !template.params) return;
+
+    // Preset-Werte in params einfügen (rest behält Defaults)
+    Object.assign(params, template.params);
+
+    // UI synchronisieren
+    syncUIToParams();
+
+    // Aktiven Chip markieren
+    document.querySelectorAll('.chip.preset-item').forEach(c => c.classList.remove('active'));
+    const activeChip = document.getElementById(`chip-server-${presetKey}`);
+    if (activeChip) activeChip.classList.add('active');
+
+    // Sofort generieren (kein Debounce)
+    generatePreview();
+  }
+
+  /**
+   * Synchronisiert alle UI-Elemente mit dem aktuellen params-Objekt.
+   * Wird nach Preset-Anwendung aufgerufen.
+   */
+  function syncUIToParams() {
+    // Slider + Zahleninputs
+    const sliderParams = [
+      ['line_width', 1], ['highlight_width', 1], ['highlight_every', 0],
+      ['line_alpha', 2], ['dash_every', 0],
+      ['levels', 0], ['scale', 0], ['octaves', 0],
+      ['persistence', 2], ['lacunarity', 1], ['smoothing', 1], ['seed', 0],
+      ['grid_divisions', 0], ['grid_alpha', 2], ['grid_line_width', 1],
+      ['width', 0], ['height', 0],
+      ['gradient_angle', 0],
+      ['layer2_scale', 0], ['layer2_weight', 2], ['layer2_seed_offset', 0],
+    ];
+    sliderParams.forEach(([key, dec]) => {
+      const val = params[key];
+      if (val === undefined) return;
+      const slider = document.getElementById(`sl-${key}`);
+      if (slider) { slider.value = val; updateSliderTrack(`sl-${key}`); }
+      const numIn = document.getElementById(`in-${key}`);
+      if (numIn) numIn.value = typeof val === 'number' ? val.toFixed(dec) : val;
+    });
+
+    // Farbfelder
+    ['bg_color', 'line_color', 'highlight_color', 'grid_color', 'bg_color_2'].forEach(key => {
+      const val = params[key];
+      if (!val) return;
+      const picker = document.getElementById(`picker-${key}`);
+      if (picker) picker.value = val;
+      const hex = document.getElementById(`hex-${key}`);
+      if (hex) hex.value = val;
+      const swatch = document.getElementById(`swatch-${key}`);
+      if (swatch) swatch.style.backgroundColor = val;
+    });
+
+    // Selects
+    ['line_style', 'color_mode', 'grid_style', 'bg_mode'].forEach(key => {
+      const sel = document.getElementById(`sel-${key}`);
+      if (sel && params[key] !== undefined) sel.value = params[key];
+    });
+
+    const sourceSel = document.getElementById('sel-terrain-source');
+    if (sourceSel) sourceSel.value = terrainSource;
+
+    const bgModeSel = document.getElementById('sel-bg_mode');
+    if (bgModeSel) bgModeSel.value = params.bg_mode || 'flat';
+    toggleGradientControls();
+    // DPI + preview_scale selects
+    const dpiSel = document.getElementById('sel-dpi');
+    if (dpiSel && params.dpi) dpiSel.value = params.dpi;
+    const psSel = document.getElementById('sel-preview_scale');
+    if (psSel && params.preview_scale) psSel.value = params.preview_scale;
+
+    // Toggle
+    const gridSwitch = document.getElementById('sw-show_grid');
+    const gridCheckbox = document.getElementById('cb-show_grid');
+    if (gridSwitch) {
+      if (params.show_grid) gridSwitch.classList.add('checked');
+      else gridSwitch.classList.remove('checked');
+    }
+    if (gridCheckbox) gridCheckbox.checked = !!params.show_grid;
+
+    const l2sw = document.getElementById('sw-layer2_enabled');
+    const l2cb = document.getElementById('cb-layer2_enabled');
+    if (l2sw) {
+      if (params.layer2_enabled) l2sw.classList.add('checked');
+      else l2sw.classList.remove('checked');
+    }
+    if (l2cb) l2cb.checked = !!params.layer2_enabled;
+    toggleLayer2Controls();
+  }
+
+
+  /* ===========================================================================
+     GENERIERUNG
+     =========================================================================== */
+
+  /** Plant eine Auto-Generierung nach Debounce-Delay. */
+  function scheduleAutoGenerate() {
+    if (autoGenTimer) clearTimeout(autoGenTimer);
+    saveParamsToHash();
+    autoGenTimer = setTimeout(() => generatePreview(), AUTO_GEN_DELAY_MS);
+  }
+
+  /** Generiert eine Vorschau via POST /api/generate. */
+  async function generatePreview() {
+    if (terrainSource === 'heightmap' && currentHeightmapBytes !== null) {
+      await generateWithHeightmap();
+      return;
+    }
+
+    if (isGenerating) return;
+    if (autoGenTimer) { clearTimeout(autoGenTimer); autoGenTimer = null; }
+
+    isGenerating = true;
+    setLoading(true, 'Generiere Vorschau…');
+    document.getElementById('btn-generate').disabled = true;
+
+    try {
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      displayImage(data);
+
+    } catch (err) {
+      showSnackbar(`Fehler: ${err.message}`);
+      console.error('Generate error:', err);
+    } finally {
+      isGenerating = false;
+      setLoading(false);
+      document.getElementById('btn-generate').disabled = false;
+    }
+  }
+
+  /** Exportiert das Bild in voller Auflösung. */
+  async function exportImage() {
+    setLoading(true, `Exportiere ${params.width}×${params.height}px…`);
+    document.getElementById('btn-export').disabled = true;
+
+    try {
+      const response = await fetch('/api/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || `HTTP ${response.status}`);
+      }
+
+      // Blob herunterladen
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `topography_seed${params.seed}_${params.width}x${params.height}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      showSnackbar(`✓ Exportiert: ${params.width}×${params.height} @ ${params.dpi} dpi`);
+
+    } catch (err) {
+      showSnackbar(`Export-Fehler: ${err.message}`);
+      console.error('Export error:', err);
+    } finally {
+      setLoading(false);
+      document.getElementById('btn-export').disabled = false;
+    }
+  }
+
+  async function exportSVG() {
+    setLoading(true, `Exportiere SVG ${params.width}×${params.height}px…`);
+    document.getElementById('btn-export-svg').disabled = true;
+
+    try {
+      const response = await fetch('/api/export/svg', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || `HTTP ${response.status}`);
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `terralines_seed${params.seed}_${params.width}x${params.height}.svg`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showSnackbar('✓ SVG exportiert — kann groß sein (5–30 MB normal)');
+    } catch (err) {
+      showSnackbar(`SVG-Fehler: ${err.message}`);
+    } finally {
+      setLoading(false);
+      document.getElementById('btn-export-svg').disabled = false;
+    }
+  }
+
+
+  /* ===========================================================================
+     UI-HELFER
+     =========================================================================== */
+
+  /** Zeigt das generierte Bild im Vorschaubereich an. */
+  function displayImage(data) {
+    const skeleton = document.getElementById('preview-skeleton');
+    const img = document.getElementById('preview-img');
+    const statusbar = document.getElementById('statusbar');
+
+    skeleton.style.display = 'none';
+    img.src = `data:image/png;base64,${data.image}`;
+    img.style.display = 'block';
+    resetViewport();
+
+    // Statusleiste aktualisieren
+    statusbar.style.display = 'flex';
+    document.getElementById('status-res').textContent = `${data.width} × ${data.height} px`;
+    document.getElementById('status-time').textContent = `${data.time_ms} ms`;
+    document.getElementById('status-seed').textContent = params.seed;
+  }
+
+  /** Setzt Ladeoverlay sichtbar/unsichtbar. */
+  function setLoading(visible, text = '') {
+    const overlay = document.getElementById('loading-overlay');
+    const loadText = document.getElementById('loading-text');
+    if (visible) {
+      overlay.classList.add('visible');
+      if (text) loadText.textContent = text;
+    } else {
+      overlay.classList.remove('visible');
+    }
+  }
+
+  /** Zeigt einen M3-Snackbar-Toast. */
+  function showSnackbar(message, durationMs = 3000) {
+    const sb = document.getElementById('snackbar');
+    sb.textContent = message;
+    sb.classList.add('visible');
+    setTimeout(() => sb.classList.remove('visible'), durationMs);
+  }
+
+  /** Würfelt einen neuen Zufalls-Seed. */
+  function randomizeSeed() {
+    playDiceAnimation('dice-seed');
+    const newSeed = Math.floor(Math.random() * 9999);
+    params.seed = newSeed;
+    document.getElementById('sl-seed').value = newSeed;
+    document.getElementById('in-seed').value = newSeed;
+    updateSliderTrack('sl-seed');
+
+    // Aktive Chip-Markierung aufheben (kein Standard-Preset mehr)
+    document.querySelectorAll('.chip.preset-item').forEach(c => c.classList.remove('active'));
+
+    scheduleAutoGenerate();
+  }
+
+  function randomizeAll() {
+    playDiceAnimation('dice-all');
+    const r = (min, max, decimals = 0) => {
+      const val = Math.random() * (max - min) + min;
+      return decimals > 0 ? parseFloat(val.toFixed(decimals)) : Math.round(val);
+    };
+
+    const hslToHex = (h, s, l) => {
+      const a = s * Math.min(l, 100 - l) / 10000;
+      const f = n => {
+        const k = (n + h / 30) % 12;
+        const color = l / 100 - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+        return Math.round(255 * color).toString(16).padStart(2, '0');
+      };
+      return `#${f(0)}${f(8)}${f(4)}`;
+    };
+
+    const baseHue = r(0, 360);
+    const accentHue = (baseHue + r(30, 180)) % 360;
+
+    params.seed = r(0, 9999);
+    params.scale = r(80, 600);
+    params.octaves = r(2, 9);
+    params.persistence = r(0.3, 0.8, 2);
+    params.lacunarity = r(1.2, 3.5, 1);
+    params.smoothing = r(0, 3, 1);
+    params.levels = r(6, 30);
+    params.line_width = r(0.4, 2.5, 1);
+    params.highlight_width = params.line_width + r(0.3, 1.5, 1);
+    params.highlight_every = r(3, 10);
+    params.line_alpha = r(0.6, 1.0, 2);
+    params.dash_every = Math.random() > 0.7 ? r(3, 10) : 0;
+
+    params.bg_color = hslToHex(baseHue, r(0, 20), r(3, 12));
+    params.bg_color_2 = hslToHex((baseHue + r(10, 60)) % 360, r(10, 30), r(8, 18));
+    params.line_color = hslToHex(baseHue, r(10, 40), r(15, 35));
+    params.highlight_color = hslToHex(accentHue, r(40, 90), r(40, 70));
+
+    params.bg_mode = ['flat', 'linear', 'radial'][r(0, 2)];
+    params.gradient_angle = r(0, 360);
+
+    params.show_grid = Math.random() > 0.7;
+    if (params.show_grid) {
+      params.grid_style = ['cross', 'dashes', 'lines'][r(0, 2)];
+      params.grid_divisions = r(4, 16);
+      params.grid_alpha = r(0.1, 0.5, 2);
+      params.grid_color = hslToHex(accentHue, r(20, 60), r(50, 85));
+    }
+
+    params.layer2_enabled = Math.random() > 0.65;
+    params.layer2_scale = r(10, 400);
+    params.layer2_weight = r(0.05, 1.0, 2);
+    params.layer2_seed_offset = r(1, 5000);
+
+    document.querySelectorAll('.chip.preset-item').forEach(c => c.classList.remove('active'));
+
+    syncUIToParams();
+    saveParamsToHash();
+    generatePreview();
+  }
+
+  function toggleGradientControls() {
+    const mode = params.bg_mode || 'flat';
+    const controls = document.getElementById('gradient-controls');
+    const angleRow = document.getElementById('gradient-angle-row');
+    if (controls) controls.style.display = (mode === 'flat') ? 'none' : 'flex';
+    if (angleRow) angleRow.style.display = (mode === 'radial') ? 'none' : 'flex';
+  }
+
+  function toggleLayer2Controls() {
+    const el = document.getElementById('layer2-controls');
+    if (el) el.style.display = params.layer2_enabled ? 'flex' : 'none';
+  }
+
+  function handleTerrainSourceChange(value) {
+    terrainSource = value;
+    const uploadArea = document.getElementById('heightmap-upload-area');
+    if (uploadArea) uploadArea.style.display = value === 'heightmap' ? 'block' : 'none';
+    if (value === 'noise') {
+      currentHeightmapBytes = null;
+      scheduleAutoGenerate();
+    }
+  }
+
+  function handleHeightmapUpload(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+
+    handleHeightmapFile(file);
+  }
+
+  function handleHeightmapFile(file) {
+    if (!file) return;
+
+    document.getElementById('heightmap-filename').textContent = file.name;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      currentHeightmapBytes = e.target.result;
+      generateWithHeightmap();
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  async function generateWithHeightmap() {
+    if (!currentHeightmapBytes || isGenerating) return;
+    isGenerating = true;
+    setLoading(true, 'Verarbeite Heightmap…');
+    document.getElementById('btn-generate').disabled = true;
+
+    const formData = new FormData();
+    formData.append('params', JSON.stringify(params));
+    formData.append('heightmap', new Blob([currentHeightmapBytes]), 'heightmap.png');
+
+    try {
+      const response = await fetch('/api/generate/heightmap', {
+        method: 'POST',
+        body: formData,
+      });
+      if (!response.ok) {
+        let msg = `HTTP ${response.status}`;
+        try {
+          const err = await response.json();
+          if (err && err.error) msg = err.error;
+        } catch (_) {}
+        throw new Error(msg);
+      }
+      const data = await response.json();
+      displayImage(data);
+    } catch (err) {
+      showSnackbar(`Heightmap-Fehler: ${err.message}`);
+    } finally {
+      isGenerating = false;
+      setLoading(false);
+      document.getElementById('btn-generate').disabled = false;
+    }
+  }
+
+  function applyViewportTransform() {
+    const img = document.getElementById('preview-img');
+    if (!img) return;
+    img.style.transform = `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.scale})`;
+    img.style.transformOrigin = 'center center';
+  }
+
+  function resetViewport() {
+    viewport.scale = 1.0;
+    viewport.x = 0;
+    viewport.y = 0;
+    applyViewportTransform();
+  }
+
+  function loadUserPresets() {
+    try {
+      return JSON.parse(localStorage.getItem(LOCALSTORAGE_KEY) || '{}');
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function saveUserPresets(presets) {
+    localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(presets));
+  }
+
+  function saveCurrentAsPreset() {
+    const name = prompt('Preset-Name:');
+    if (!name || !name.trim()) return;
+
+    const userPresets = loadUserPresets();
+    userPresets[name.trim()] = { ...params };
+    saveUserPresets(userPresets);
+    renderPresetList();
+    showSnackbar(`Preset "${name.trim()}" gespeichert`);
+  }
+
+  function exportCurrentSettings() {
+    const defaultName = `terralines_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}`;
+    const name = (prompt('Name für den Export:', defaultName) || defaultName).trim();
+    const payload = {
+      name,
+      chip_color: params.line_color || '#666666',
+      params: { ...params },
+    };
+
+    const json = JSON.stringify(payload, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${name.replace(/[^a-z0-9_-]+/gi, '_').toLowerCase()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function applyPresetFromObject(name, preset) {
+    Object.assign(params, preset);
+    syncUIToParams();
+    document.querySelectorAll('.chip.preset-item').forEach(c => c.classList.remove('active'));
+    const chip = document.getElementById(`chip-user-${name}`);
+    if (chip) chip.classList.add('active');
+    saveParamsToHash();
+    generatePreview();
+  }
+
+  function renderServerTemplateList() {
+    const container = document.getElementById('server-preset-chips');
+    if (!container) return;
+    container.innerHTML = '';
+
+    Object.entries(SERVER_TEMPLATES).forEach(([key, tpl]) => {
+      const chip = document.createElement('button');
+      chip.className = 'chip preset-item';
+      chip.id = `chip-server-${key}`;
+
+      const dot = document.createElement('span');
+      dot.className = 'chip-dot';
+      dot.style.background = tpl.chip_color || '#666666';
+
+      const text = document.createElement('span');
+      text.textContent = tpl.name || key;
+
+      chip.appendChild(dot);
+      chip.appendChild(text);
+      chip.onclick = () => applyPreset(key);
+      container.appendChild(chip);
+    });
+  }
+
+  function renderPresetList() {
+    const container = document.getElementById('user-preset-chips');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const userPresets = loadUserPresets();
+
+    Object.entries(userPresets).forEach(([name, preset]) => {
+      const chip = document.createElement('button');
+      chip.className = 'chip user-preset preset-item';
+      chip.id = `chip-user-${name}`;
+
+      const text = document.createElement('span');
+      text.textContent = `⭐ ${name}`;
+
+      const del = document.createElement('span');
+      del.textContent = '✕';
+      del.style.marginLeft = '6px';
+      del.style.opacity = '.6';
+      del.style.fontSize = '11px';
+      del.onclick = (e) => {
+        e.stopPropagation();
+        deleteUserPreset(name);
+      };
+
+      chip.appendChild(text);
+      chip.appendChild(del);
+      chip.onclick = () => applyPresetFromObject(name, preset);
+      container.appendChild(chip);
+    });
+
+    lucide.createIcons();
+  }
+
+  function deleteUserPreset(name) {
+    const userPresets = loadUserPresets();
+    delete userPresets[name];
+    saveUserPresets(userPresets);
+    renderPresetList();
+    showSnackbar(`Preset "${name}" gelöscht`);
+  }
+
+  function exportUserPresets() {
+    const presets = loadUserPresets();
+    const json = JSON.stringify(presets, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'terralines_presets.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function importUserPresets(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const imported = JSON.parse(e.target.result);
+        const existing = loadUserPresets();
+
+        // Unterstützt sowohl ein einzelnes Template-Objekt
+        // als auch ein Dictionary mehrerer Presets.
+        if (imported && typeof imported === 'object' && !Array.isArray(imported)) {
+          if (imported.params && typeof imported.params === 'object') {
+            const key = (imported.name || `import_${Date.now()}`).toString().trim();
+            existing[key] = imported.params;
+          } else {
+            Object.entries(imported).forEach(([k, v]) => {
+              if (v && typeof v === 'object' && !Array.isArray(v)) {
+                existing[k] = v.params && typeof v.params === 'object' ? v.params : v;
+              }
+            });
+          }
+        } else {
+          throw new Error('Ungültiges JSON-Format');
+        }
+
+        saveUserPresets(existing);
+        renderPresetList();
+        showSnackbar('Einstellungen importiert');
+      } catch (_) {
+        showSnackbar('Import fehlgeschlagen — ungültiges JSON');
+      }
+    };
+    reader.readAsText(file);
+    input.value = '';
+  }
+
+  function playDiceAnimation(wrapperId) {
+    const el = document.getElementById(wrapperId);
+    if (!el) return;
+    el.classList.remove('rolling');
+    void el.offsetWidth;
+    el.classList.add('rolling');
+    el.addEventListener('animationend', () => {
+      el.classList.remove('rolling');
+    }, { once: true });
+  }
+
+  /** Klappt eine Accordion-Sektion auf/zu. */
+  function toggleSection(sectionId) {
+    const section = document.getElementById(sectionId);
+    section.classList.toggle('open');
+  }
+
+
+  /* ===========================================================================
+     INITIALISIERUNG
+     =========================================================================== */
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const fromHash = loadParamsFromHash();
+    if (fromHash) Object.assign(params, fromHash);
+
+    renderServerTemplateList();
+    // Swatch-Farben aus initialen params setzen
+    syncUIToParams();
+    initSliderTracks();
+    renderPresetList();
+
+    const wrapper = document.getElementById('preview-wrapper');
+    if (wrapper) {
+      wrapper.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+        viewport.scale = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, viewport.scale + delta));
+        applyViewportTransform();
+      }, { passive: false });
+
+      wrapper.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        viewport.isDragging = true;
+        viewport.dragStartX = e.clientX;
+        viewport.dragStartY = e.clientY;
+        viewport.dragStartVX = viewport.x;
+        viewport.dragStartVY = viewport.y;
+        wrapper.style.cursor = 'grabbing';
+      });
+
+      wrapper.addEventListener('dblclick', resetViewport);
+    }
+
+    window.addEventListener('mousemove', (e) => {
+      if (!viewport.isDragging) return;
+      viewport.x = viewport.dragStartVX + (e.clientX - viewport.dragStartX);
+      viewport.y = viewport.dragStartVY + (e.clientY - viewport.dragStartY);
+      applyViewportTransform();
+    });
+
+    window.addEventListener('mouseup', () => {
+      viewport.isDragging = false;
+      if (wrapper) wrapper.style.cursor = 'grab';
+    });
+
+    const hmInput = document.getElementById('heightmap-input');
+    const hmLabel = document.getElementById('heightmap-drop-label');
+    if (hmLabel && hmInput) {
+      hmLabel.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        hmLabel.style.background = 'rgba(255,255,255,0.08)';
+      });
+      hmLabel.addEventListener('dragleave', () => {
+        hmLabel.style.background = 'transparent';
+      });
+      hmLabel.addEventListener('drop', (e) => {
+        e.preventDefault();
+        hmLabel.style.background = 'transparent';
+        if (!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files[0]) return;
+        handleHeightmapFile(e.dataTransfer.files[0]);
+      });
+    }
+
+    const templatesScroll = document.getElementById('templates-scroll');
+    if (templatesScroll) {
+      templatesScroll.addEventListener('wheel', (e) => {
+        if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+          templatesScroll.scrollLeft += e.deltaY;
+          e.preventDefault();
+        }
+      }, { passive: false });
+    }
+
+    // Beim Start direkt eine Vorschau generieren
+    setTimeout(() => generatePreview(), 300);
+    lucide.createIcons();
+  });
+</script>
+</body>
+</html>
