@@ -1,0 +1,17 @@
+{
+  "name": "Dark Minimal",
+  "chip_color": "#222222",
+  "params": {
+    "bg_color": "#000000",
+    "line_color": "#222222",
+    "highlight_color": "#333333",
+    "highlight_every": 5,
+    "line_width": 0.6,
+    "highlight_width": 0.9,
+    "scale": 180,
+    "levels": 18,
+    "smoothing": 0.8,
+    "show_grid": false,
+    "line_style": "solid"
+  }
+}

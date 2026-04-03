@@ -1,0 +1,21 @@
+{
+  "name": "Forest",
+  "chip_color": "#1e4a2e",
+  "params": {
+    "bg_color": "#0b2b1e",
+    "line_color": "#1e4a2e",
+    "highlight_color": "#6b8c1f",
+    "highlight_every": 3,
+    "line_width": 0.7,
+    "highlight_width": 1.3,
+    "scale": 250,
+    "levels": 14,
+    "smoothing": 1.0,
+    "show_grid": true,
+    "grid_style": "dashes",
+    "grid_color": "#6b8c1f",
+    "grid_alpha": 0.15,
+    "line_style": "solid",
+    "dash_every": 5
+  }
+}
