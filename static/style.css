@@ -1,0 +1,798 @@
+/* =========================================================================
+   M3 Design Tokens — Dark Theme, Teal Primary
+   https://m3.material.io/styles/color/the-color-system/tokens
+   ========================================================================= */
+:root {
+  /* Primary (Teal) */
+  --md-sys-color-primary:              #4DD0C4;
+  --md-sys-color-on-primary:           #003731;
+  --md-sys-color-primary-container:    #005047;
+  --md-sys-color-on-primary-container: #70F7EA;
+
+  /* Secondary */
+  --md-sys-color-secondary:            #B2BDBA;
+  --md-sys-color-on-secondary:         #1D2E2B;
+  --md-sys-color-secondary-container:  #344540;
+  --md-sys-color-on-secondary-container:#CED8D5;
+
+  /* Error */
+  --md-sys-color-error:                #FFB4AB;
+  --md-sys-color-error-container:      #93000A;
+
+  /* Surfaces */
+  --md-sys-color-background:           #0E1514;
+  --md-sys-color-on-background:        #DDE4E2;
+  --md-sys-color-surface:              #0E1514;
+  --md-sys-color-on-surface:           #DDE4E2;
+  --md-sys-color-surface-variant:      #3B4947;
+  --md-sys-color-on-surface-variant:   #BBC9C6;
+  --md-sys-color-surface-container-lowest:  #091110;
+  --md-sys-color-surface-container-low:     #161D1C;
+  --md-sys-color-surface-container:         #1A2120;
+  --md-sys-color-surface-container-high:    #252C2B;
+  --md-sys-color-surface-container-highest: #2F3736;
+
+  /* Outline */
+  --md-sys-color-outline:              #859390;
+  --md-sys-color-outline-variant:      #3B4947;
+
+  /* Inverse */
+  --md-sys-color-inverse-surface:      #DDE4E2;
+  --md-sys-color-inverse-on-surface:   #2B3231;
+  --md-sys-color-inverse-primary:      #006B5F;
+
+  /* Tonal Shapes (M3 Shape Scale) */
+  --md-shape-extra-small: 4px;
+  --md-shape-small:        8px;
+  --md-shape-medium:      12px;
+  --md-shape-large:       16px;
+  --md-shape-extra-large: 28px;
+  --md-shape-full:        9999px;
+
+  /* Elevation shadows (M3 tonal elevation) */
+  --md-elevation-1: 0 1px 2px rgba(0,0,0,.3), 0 1px 3px 1px rgba(0,0,0,.15);
+  --md-elevation-2: 0 1px 2px rgba(0,0,0,.3), 0 2px 6px 2px rgba(0,0,0,.15);
+  --md-elevation-3: 0 4px 8px 3px rgba(0,0,0,.15), 0 1px 3px rgba(0,0,0,.3);
+
+  /* Typography (M3 Type Scale) */
+  --md-sys-typescale-display-font: "Roboto Flex", sans-serif;
+  --md-sys-typescale-body-font:    "Roboto Flex", sans-serif;
+  --md-sys-typescale-label-font:   "Roboto Flex", sans-serif;
+  --md-sys-typescale-mono-font:    "Roboto Mono", monospace;
+
+  /* Transition */
+  --md-motion-duration-short2: 100ms;
+  --md-motion-duration-medium2: 300ms;
+  --md-motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* =========================================================================
+   Reset & Base
+   ========================================================================= */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--md-sys-color-background);
+  color: var(--md-sys-color-on-background);
+  font-family: var(--md-sys-typescale-body-font);
+  font-size: 14px;
+  line-height: 1.5;
+  overflow: hidden;
+}
+
+/* =========================================================================
+   Layout
+   ========================================================================= */
+.app-shell {
+  display: grid;
+  grid-template-rows: 56px 48px 1fr;
+  grid-template-columns: clamp(380px, 30vw, 460px) 1fr;
+  height: 100vh;
+}
+
+/* ── Top App Bar ─────────────────────────────────────────────────────── */
+.top-app-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  background: var(--md-sys-color-surface-container);
+  border-bottom: 1px solid var(--md-sys-color-outline-variant);
+  box-shadow: var(--md-elevation-1);
+  z-index: 10;
+}
+
+.app-bar-icon {
+  width: 32px; height: 32px;
+  border-radius: var(--md-shape-small);
+  background: var(--md-sys-color-primary-container);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+}
+
+.app-bar-title {
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  color: var(--md-sys-color-on-surface);
+  flex-shrink: 0;
+}
+.app-bar-title span {
+  color: var(--md-sys-color-primary);
+  font-weight: 600;
+}
+
+.app-bar-divider {
+  width: 1px; height: 24px;
+  background: var(--md-sys-color-outline-variant);
+  margin: 0 4px;
+}
+
+.app-bar-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--md-sys-color-on-surface-variant);
+  flex-shrink: 0;
+}
+
+/* ── Preset-Chips-Bar ────────────────────────────────────────────────── */
+.preset-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  background: var(--md-sys-color-surface-container-low);
+  border-bottom: 1px solid var(--md-sys-color-outline-variant);
+  overflow: hidden;
+}
+
+.preset-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  min-width: max-content;
+}
+
+.preset-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--md-sys-color-outline-variant);
+  flex-shrink: 0;
+  margin: 0 2px;
+}
+
+.templates-scroll {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  white-space: nowrap;
+}
+.templates-scroll::-webkit-scrollbar { display: none; }
+
+.templates-track {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: max-content;
+  padding-right: 4px;
+}
+
+.templates-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preset-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--md-sys-color-outline);
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+
+/* M3 Assist/Filter Chip */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  height: 32px;
+  border-radius: var(--md-shape-full);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  background: transparent;
+  color: var(--md-sys-color-on-surface-variant);
+  font-family: var(--md-sys-typescale-label-font);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background var(--md-motion-duration-short2) var(--md-motion-easing-standard),
+    color       var(--md-motion-duration-short2) var(--md-motion-easing-standard),
+    border-color var(--md-motion-duration-short2) var(--md-motion-easing-standard);
+  flex-shrink: 0;
+}
+.chip:hover {
+  background: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent);
+}
+.chip.active {
+  background: var(--md-sys-color-secondary-container);
+  border-color: transparent;
+  color: var(--md-sys-color-on-secondary-container);
+}
+.chip-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────────── */
+.sidebar {
+  background: var(--md-sys-color-surface-container-low);
+  border-right: 1px solid var(--md-sys-color-outline-variant);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--md-sys-color-outline-variant) transparent;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sidebar-inner { padding: 12px; flex: 1; }
+
+/* ── Accordion-Sektion ───────────────────────────────────────────────── */
+.section {
+  border-radius: var(--md-shape-large);
+  margin-bottom: 10px;
+  overflow: hidden;
+  background: var(--md-sys-color-surface-container);
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background var(--md-motion-duration-short2) var(--md-motion-easing-standard),
+    transform var(--md-motion-duration-short2) var(--md-motion-easing-standard);
+}
+.section-header:hover {
+  background: color-mix(in srgb, var(--md-sys-color-on-surface) 10%, transparent);
+}
+
+.section-icon {
+  font-size: 16px;
+  width: 22px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.section-title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: .03em;
+  color: var(--md-sys-color-on-surface);
+}
+
+.section-chevron {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 0;
+  transition: transform var(--md-motion-duration-medium2) var(--md-motion-easing-standard), color var(--md-motion-duration-short2) ease;
+  transform-origin: center;
+}
+.section-chevron::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+  margin-top: -2px;
+  opacity: .95;
+  transition: transform var(--md-motion-duration-medium2) var(--md-motion-easing-standard);
+}
+.section.open .section-chevron { color: var(--md-sys-color-primary); }
+.section.open .section-chevron::before { transform: rotate(225deg); }
+
+.section-body {
+  padding: 2px 16px 16px;
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+}
+.section.open .section-body { display: flex; }
+
+#gradient-controls,
+#layer2-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 2px;
+}
+
+#gradient-controls {
+  margin-top: 2px;
+}
+
+#layer2-controls {
+  margin-top: 4px;
+}
+
+#gradient-angle-row {
+  margin-top: 4px;
+}
+
+/* ── Control-Zeile ───────────────────────────────────────────────────── */
+.ctrl-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0;
+  gap: 12px;
+}
+.ctrl-row:last-child { margin-bottom: 0; }
+
+.ctrl-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
+  flex-shrink: 0;
+  width: 124px;
+}
+
+.ctrl-input-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+/* ── M3 Slider ───────────────────────────────────────────────────────── */
+.m3-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: var(--md-sys-color-surface-container-highest);
+  border-radius: var(--md-shape-full);
+  outline: none;
+  cursor: pointer;
+}
+.m3-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--md-sys-color-primary);
+  box-shadow: 0 0 0 0px color-mix(in srgb, var(--md-sys-color-primary) 0%, transparent);
+  transition: box-shadow var(--md-motion-duration-short2) ease;
+}
+.m3-slider::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--md-sys-color-primary) 20%, transparent);
+}
+.m3-slider:active::-webkit-slider-thumb {
+  box-shadow: 0 0 0 10px color-mix(in srgb, var(--md-sys-color-primary) 24%, transparent);
+}
+/* Track-Fortschritt via CSS-Background wird per JS gesetzt */
+
+/* ── M3 Number Input ─────────────────────────────────────────────────── */
+.m3-input {
+  width: 54px;
+  height: 32px;
+  background: var(--md-sys-color-surface-container-highest);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-shape-extra-small);
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-sys-typescale-mono-font);
+  font-size: 12px;
+  text-align: center;
+  outline: none;
+  padding: 0 4px;
+  transition: border-color var(--md-motion-duration-short2) ease;
+}
+.m3-input:focus {
+  border-color: var(--md-sys-color-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--md-sys-color-primary) 20%, transparent);
+}
+
+/* ── Color Picker Wrapper ─────────────────────────────────────────────── */
+.color-picker-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+.color-swatch {
+  width: 28px; height: 28px;
+  border-radius: var(--md-shape-extra-small);
+  border: 2px solid var(--md-sys-color-outline-variant);
+  cursor: pointer;
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+}
+.color-swatch input[type="color"] {
+  position: absolute;
+  inset: -4px;
+  width: calc(100% + 8px);
+  height: calc(100% + 8px);
+  opacity: 0;
+  cursor: pointer;
+}
+.color-hex {
+  flex: 1;
+  height: 28px;
+  background: var(--md-sys-color-surface-container-highest);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-shape-extra-small);
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-sys-typescale-mono-font);
+  font-size: 12px;
+  padding: 0 8px;
+  outline: none;
+}
+.color-hex:focus { border-color: var(--md-sys-color-primary); }
+
+/* ── M3 Select ───────────────────────────────────────────────────────── */
+.m3-select {
+  flex: 1;
+  height: 32px;
+  background: var(--md-sys-color-surface-container-highest);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-shape-extra-small);
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-sys-typescale-body-font);
+  font-size: 13px;
+  padding: 0 8px;
+  outline: none;
+  cursor: pointer;
+}
+.m3-select:focus { border-color: var(--md-sys-color-primary); }
+
+/* ── M3 Toggle Switch ────────────────────────────────────────────────── */
+.m3-switch-track {
+  display: inline-flex;
+  align-items: center;
+  width: 52px; height: 32px;
+  border-radius: var(--md-shape-full);
+  background: var(--md-sys-color-surface-variant);
+  border: 2px solid var(--md-sys-color-outline);
+  cursor: pointer;
+  position: relative;
+  transition:
+    background var(--md-motion-duration-medium2) var(--md-motion-easing-standard),
+    border-color var(--md-motion-duration-medium2) var(--md-motion-easing-standard);
+}
+.m3-switch-track.checked {
+  background: var(--md-sys-color-primary);
+  border-color: var(--md-sys-color-primary);
+}
+.m3-switch-thumb {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--md-sys-color-outline);
+  position: absolute;
+  left: 6px;
+  transition:
+    left var(--md-motion-duration-medium2) var(--md-motion-easing-standard),
+    background var(--md-motion-duration-medium2) var(--md-motion-easing-standard);
+}
+.m3-switch-track.checked .m3-switch-thumb {
+  left: 26px;
+  background: var(--md-sys-color-on-primary);
+}
+.m3-switch-track input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── Sidebar Footer Buttons ───────────────────────────────────────────── */
+.sidebar-footer {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--md-sys-color-outline-variant);
+}
+
+/* M3 Filled Button */
+.btn-filled {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 24px;
+  border-radius: var(--md-shape-full);
+  border: none;
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  font-family: var(--md-sys-typescale-label-font);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: .03em;
+  cursor: pointer;
+  transition: box-shadow var(--md-motion-duration-short2) ease,
+              opacity var(--md-motion-duration-short2) ease;
+}
+.btn-filled:hover { box-shadow: var(--md-elevation-1); }
+.btn-filled:active { opacity: .88; }
+.btn-filled:disabled { opacity: .38; cursor: default; box-shadow: none; }
+
+/* M3 Outlined Button */
+.btn-outlined {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 24px;
+  border-radius: var(--md-shape-full);
+  border: 1px solid var(--md-sys-color-outline);
+  background: transparent;
+  color: var(--md-sys-color-primary);
+  font-family: var(--md-sys-typescale-label-font);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: .03em;
+  cursor: pointer;
+  transition: background var(--md-motion-duration-short2) ease;
+}
+.btn-outlined:hover {
+  background: color-mix(in srgb, var(--md-sys-color-primary) 8%, transparent);
+}
+.btn-outlined:disabled { opacity: .38; cursor: default; }
+
+/* ── Main Preview Area ────────────────────────────────────────────────── */
+.preview-area {
+  background: var(--md-sys-color-background);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+}
+
+@media (max-width: 1100px) {
+  .app-shell {
+    grid-template-columns: minmax(340px, 44vw) 1fr;
+  }
+}
+
+.preview-canvas-wrapper {
+  position: relative;
+  max-width: 100%;
+  max-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  width: 100%;
+  padding: 24px;
+  overflow: hidden;
+  cursor: grab;
+}
+
+.preview-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--md-shape-medium);
+  box-shadow: var(--md-elevation-3);
+  display: block;
+  transition: none;
+  will-change: transform;
+}
+
+/* Skeleton / Ladestate */
+.preview-skeleton {
+  width: 100%;
+  aspect-ratio: 16/9;
+  max-height: calc(100vh - 160px);
+  background: var(--md-sys-color-surface-container);
+  border-radius: var(--md-shape-medium);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.skeleton-icon {
+  font-size: 48px;
+  opacity: .4;
+}
+.skeleton-text {
+  font-size: 14px;
+  opacity: .6;
+}
+
+/* Ladeoverlay */
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: color-mix(in srgb, var(--md-sys-color-background) 70%, transparent);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s ease;
+  z-index: 5;
+}
+.loading-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* M3 Circular Progress (CSS-only) */
+.progress-ring {
+  width: 48px; height: 48px;
+  display: block;
+  animation: rotate 1.2s linear infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.progress-ring-circle {
+  fill: none;
+  stroke: var(--md-sys-color-primary);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-dasharray: 110;
+  stroke-dashoffset: 80;
+  animation: dash 1.2s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes rotate { to { transform: rotate(360deg); } }
+@keyframes dash {
+  0%   { stroke-dashoffset: 92; }
+  50%  { stroke-dashoffset: 22; }
+  100% { stroke-dashoffset: 92; }
+}
+
+.loading-text {
+  font-size: 13px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* ── Preview Statusleiste ────────────────────────────────────────────── */
+.preview-statusbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 24px;
+  border-top: 1px solid var(--md-sys-color-outline-variant);
+  background: var(--md-sys-color-surface-container-low);
+  width: 100%;
+  font-size: 12px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.status-value {
+  font-family: var(--md-sys-typescale-mono-font);
+  color: var(--md-sys-color-on-surface);
+  font-size: 11px;
+}
+
+/* ── Divider ─────────────────────────────────────────────────────────── */
+.divider {
+  height: 1px;
+  background: var(--md-sys-color-outline-variant);
+  margin: 10px 0;
+}
+
+/* ── Scrollbar Styling ───────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--md-sys-color-outline-variant);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--md-sys-color-outline); }
+
+/* ── Toast-Benachrichtigungen (M3 Snackbar) ─────────────────────────── */
+.snackbar {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: var(--md-sys-color-inverse-surface);
+  color: var(--md-sys-color-inverse-on-surface);
+  padding: 12px 24px;
+  border-radius: var(--md-shape-extra-small);
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: var(--md-elevation-3);
+  z-index: 1000;
+  transition: transform var(--md-motion-duration-medium2) var(--md-motion-easing-standard);
+  pointer-events: none;
+}
+.snackbar.visible {
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ── Seed-Würfel-Button ───────────────────────────────────────────────── */
+.btn-icon-sm {
+  width: 28px; height: 28px;
+  border-radius: var(--md-shape-extra-small);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  background: var(--md-sys-color-surface-container-highest);
+  color: var(--md-sys-color-on-surface-variant);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background var(--md-motion-duration-short2) ease;
+  flex-shrink: 0;
+}
+.btn-icon-sm:hover { background: var(--md-sys-color-surface-container-highest); color: var(--md-sys-color-on-surface); }
+
+.lucide {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.lucide-sm {
+  width: 14px;
+  height: 14px;
+}
+
+.lucide-lg {
+  width: 24px;
+  height: 24px;
+  stroke-width: 1.5;
+}
+
+@keyframes dice-roll {
+  0%   { transform: rotate(0deg) scale(1); }
+  20%  { transform: rotate(72deg) scale(1.35); }
+  40%  { transform: rotate(144deg) scale(0.9); }
+  60%  { transform: rotate(216deg) scale(1.2); }
+  80%  { transform: rotate(288deg) scale(0.95); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+.rolling {
+  animation: dice-roll 480ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  display: inline-block;
+}
