@@ -1,0 +1,17 @@
+{
+  "name": "Kali Dark",
+  "chip_color": "#202020",
+  "params": {
+    "bg_color": "#000000",
+    "line_color": "#202020",
+    "highlight_color": "#303030",
+    "highlight_every": 6,
+    "line_width": 0.5,
+    "highlight_width": 0.8,
+    "scale": 300,
+    "levels": 20,
+    "smoothing": 0.7,
+    "show_grid": false,
+    "line_style": "solid"
+  }
+}

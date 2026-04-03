@@ -1,0 +1,18 @@
+{
+  "name": "Neon Pink",
+  "chip_color": "#d6185f",
+  "params": {
+    "bg_color": "#121824",
+    "line_color": "#d6185f",
+    "highlight_color": "#ff2d78",
+    "highlight_every": 4,
+    "line_width": 1.4,
+    "highlight_width": 2.2,
+    "scale": 350,
+    "levels": 10,
+    "smoothing": 1.5,
+    "show_grid": false,
+    "line_style": "solid",
+    "dash_every": 8
+  }
+}
