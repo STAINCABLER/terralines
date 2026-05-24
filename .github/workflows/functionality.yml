@@ -50,14 +50,24 @@ jobs:
 
       - name: Smoke test container
         run: |
+          set -o pipefail
           for i in {1..60}; do
-            if curl -fsS http://127.0.0.1:8000/ >/tmp/terralines-index.html; then
+            if curl -fsS http://127.0.0.1:8000/ >/tmp/terralines-index.html 2>/tmp/terralines-curl.log; then
               break
             fi
             sleep 1
           done
 
-          grep -q "Topografischer Mustergenerator" /tmp/terralines-index.html
+          if ! grep -q "Topografischer Mustergenerator" /tmp/terralines-index.html; then
+            echo "=== Index check failed; showing curl output (truncated) ==="
+            sed -n '1,200p' /tmp/terralines-curl.log || true
+            echo "=== Docker container logs ==="
+            docker logs terralines-ci || true
+            echo "=== /tmp/terralines-index.html (if present) ==="
+            sed -n '1,200p' /tmp/terralines-index.html || true
+            exit 1
+          fi
+
           grep -q "made by Tobias Maimone of LTM-Labs" /tmp/terralines-index.html
           grep -q "ltm-labs.de" /tmp/terralines-index.html
 
