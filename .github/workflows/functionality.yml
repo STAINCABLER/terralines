@@ -45,16 +45,18 @@ jobs:
       - name: Build container image
         run: docker build -t ltm_ptb_terralines:ci .
 
-      - name: Start container
-        run: docker run -d --rm --name terralines-ci -p 8000:8000 ltm_ptb_terralines:ci
+      - name: Start container (no host port mapping)
+        run: |
+          # Start the container without publishing a host port to avoid port-allocation conflicts
+          docker run -d --name terralines-ci ltm_ptb_terralines:ci
 
-      - name: Smoke test container
+      - name: Smoke test container (exec inside container)
         run: |
           set -o pipefail
-          for i in {1..60}; do
-            if curl -fsS http://127.0.0.1:8000/ >/tmp/terralines-index.html 2>/tmp/terralines-curl.log; then
-              break
-            fi
+
+          # wait for the server inside the container to respond
+          for i in $(seq 1 60); do
+            docker exec terralines-ci sh -c "curl -fsS http://127.0.0.1:8000/" > /tmp/terralines-index.html 2> /tmp/terralines-curl.log && break || true
             sleep 1
           done
 
@@ -62,7 +64,9 @@ jobs:
             echo "=== Index check failed; showing curl output (truncated) ==="
             sed -n '1,200p' /tmp/terralines-curl.log || true
             echo "=== Docker container logs ==="
-            docker logs terralines-ci || true
+            docker logs terralines-ci --since 1m || true
+            echo "=== Container inspect ==="
+            docker inspect terralines-ci --format '{{json .State}}' || true
             echo "=== /tmp/terralines-index.html (if present) ==="
             sed -n '1,200p' /tmp/terralines-index.html || true
             exit 1
@@ -73,4 +77,5 @@ jobs:
 
       - name: Stop container
         if: always()
-        run: docker rm -f terralines-ci
+        run: |
+          docker rm -f terralines-ci || true
