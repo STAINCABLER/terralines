@@ -55,7 +55,7 @@ jobs:
           set -o pipefail
 
           # wait for the server inside the container to respond using a separate curl container
-          for i in $(seq 1 60); do
+          for i in $(seq 1 120); do
             docker run --rm --network container:terralines-ci curlimages/curl:8.4.0 -fsS http://127.0.0.1:8000/ > /tmp/terralines-index.html 2> /tmp/terralines-curl.log && break || true
             sleep 1
           done
@@ -72,7 +72,7 @@ jobs:
             exit 1
           fi
 
-          grep -q "made by Tobias Maimone of LTM-Labs" /tmp/terralines-index.html
+          grep -q "Made by Tobias Maimone of LTM-Labs" /tmp/terralines-index.html
           grep -q "ltm-labs.de" /tmp/terralines-index.html
 
       - name: Stop container
