@@ -178,7 +178,7 @@ def _validate_topo_params(p: TopoParams) -> None:
     p.color_mode = _one_of('color_mode', p.color_mode, {'flat', 'elevation'})
 
 
-TEMPLATE_DIR = Path(__file__).resolve().parent / 'template'
+TEMPLATE_DIR = Path(__file__).resolve().parent / 'templates'
 
 
 def _normalize_template_payload(template_key: str, payload: dict) -> dict:

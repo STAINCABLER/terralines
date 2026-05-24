@@ -18,7 +18,7 @@ RUN python -m pip install --upgrade pip \
 
 COPY app.py generator.py index.html ./
 COPY static ./static
-COPY template ./template
+COPY templates ./templates
 
 EXPOSE 8000
 

@@ -104,7 +104,7 @@ terralines/
 │   └── workflows/   # Nightly, release, functionality and security workflows
 ├── tests/           # Unit and security regression tests
 ├── static/          # Stylesheet and favicon
-├── template/        # Server-side presets
+├── templates/       # Server-side presets
 ├── requirements.txt
 └── index.html       # Frontend (Material You dark theme)
 ```

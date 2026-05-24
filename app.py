@@ -313,7 +313,7 @@ def api_generate_heightmap():
 
 @app.route('/api/presets', methods=['GET'])
 def api_presets():
-    """Gibt alle Presets aus dem template-Ordner zurück."""
+    """Gibt alle Presets aus dem templates-Ordner zurück."""
     return jsonify(load_templates())
 
 
