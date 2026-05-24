@@ -18,7 +18,7 @@ jobs:
     if: github.event_name == 'pull_request'
     steps:
       - name: Review dependency changes
-        uses: actions/dependency-review-action@v4
+        uses: actions/dependency-review-action@v5
 
   security-audit:
     runs-on: ubuntu-latest
