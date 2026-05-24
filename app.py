@@ -107,8 +107,9 @@ def _is_rate_limited(bucket_key: str) -> bool:
 
 def _handle_api_exception(exc: Exception, route_name: str):
     if isinstance(exc, ValueError):
-        return _json_error(str(exc), 422)
-    app.logger.exception("Fehler bei %s", route_name)
+        app.logger.warning("Ungültige Eingabe bei %s: %s", route_name, exc)
+        return _json_error('Ungültige Eingabe', 422)
+    app.logger.error("Fehler bei %s: %s", route_name, exc)
     return _json_error('Interner Serverfehler', 500)
 
 
