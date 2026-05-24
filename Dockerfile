@@ -7,6 +7,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+ENV HOST=0.0.0.0 \
+    PORT=8000
+
 RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin appuser
 
 COPY requirements.txt ./

@@ -328,7 +328,7 @@ def api_defaults():
 
 if __name__ == '__main__':
     debug_enabled = os.getenv('TERRALINES_DEBUG', '0') == '1'
-    host = os.getenv('HOST', '0.0.0.0')
+    host = os.getenv('HOST', '127.0.0.1')
     port = int(os.getenv('PORT', '5000'))
     mode = 'DEBUG' if debug_enabled else 'PRODUKTION'
     print("\n" + "="*55)

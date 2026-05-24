@@ -1,0 +1,78 @@
+version: 2
+
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "03:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    pull-request-branch-name:
+      separator: "-"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    groups:
+      github-actions-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "03:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 4
+    pull-request-branch-name:
+      separator: "-"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      runtime-minor-patch:
+        patterns:
+          - "flask"
+          - "flask-talisman"
+          - "gunicorn"
+          - "pillow"
+        update-types:
+          - "minor"
+          - "patch"
+      scientific-stack-minor-patch:
+        patterns:
+          - "numpy"
+          - "scipy"
+          - "matplotlib"
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "03:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 2
+    pull-request-branch-name:
+      separator: "-"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "docker"

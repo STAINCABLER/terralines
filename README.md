@@ -16,6 +16,7 @@ Terralines generates topographic contour patterns using fractal Brownian motion 
 
 - Python 3.10+
 - pip
+- Docker Desktop if you want to build and run the container locally
 
 ## Setup
 
@@ -28,18 +29,16 @@ python -m pip install -r requirements.txt
 python app.py
 ```
 
-Wenn du das Programm später erneut startest, aktiviere zuerst die venv:
+If you want to start it again later, activate the venv first:
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
 python app.py
 ```
 
-Alternative ohne Aktivierung:
+Alternative without activating the environment:
 
-```bash
-git clone https://github.com/yourname/terralines
-cd terralines
+```powershell
 .venv\Scripts\python.exe -m pip install -r requirements.txt
 .venv\Scripts\python.exe app.py
 ```
@@ -48,7 +47,7 @@ Open `http://127.0.0.1:5000`.
 
 ## Docker
 
-The container image is published as `ghcr.io/<owner>/ltm_ptb_terralines`.
+The container image is published as `ghcr.io/staincabler/ltm_ptb_terralines`.
 
 - Nightly builds run on every push and publish `nightly` plus a short SHA tag.
 - Release builds are manual only and can publish `latest` plus an optional full version tag.
@@ -101,7 +100,9 @@ terralines/
 ├── Dockerfile       # Minimal production container image
 ├── generator.py     # Noise generation and rendering
 ├── .github/
-│   └── workflows/   # GitHub Actions for nightly and release builds
+│   ├── dependabot.yml
+│   └── workflows/   # Nightly, release, functionality and security workflows
+├── tests/           # Unit and security regression tests
 ├── static/          # Stylesheet and favicon
 ├── template/        # Server-side presets
 ├── requirements.txt
