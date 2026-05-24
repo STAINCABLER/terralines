@@ -328,8 +328,10 @@ def api_defaults():
 
 if __name__ == '__main__':
     debug_enabled = os.getenv('TERRALINES_DEBUG', '0') == '1'
+    host = os.getenv('HOST', '0.0.0.0')
+    port = int(os.getenv('PORT', '5000'))
     mode = 'DEBUG' if debug_enabled else 'PRODUKTION'
     print("\n" + "="*55)
-    print(f"  Topografie-Generator ({mode})  ·  http://127.0.0.1:5000")
+    print(f"  Topografie-Generator ({mode})  ·  http://{host}:{port}")
     print("="*55 + "\n")
-    app.run(debug=debug_enabled, port=5000, threaded=True, use_reloader=debug_enabled)
+    app.run(host=host, debug=debug_enabled, port=port, threaded=True, use_reloader=debug_enabled)

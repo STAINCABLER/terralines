@@ -701,6 +701,38 @@ html, body {
   color: var(--md-sys-color-on-surface-variant);
 }
 
+.status-info-link {
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--md-sys-color-on-surface-variant);
+  background: color-mix(in srgb, var(--md-sys-color-on-surface) 4%, transparent);
+  text-decoration: none;
+  flex: 0 0 auto;
+  transition:
+    background var(--md-motion-duration-short2) var(--md-motion-easing-standard),
+    color var(--md-motion-duration-short2) var(--md-motion-easing-standard),
+    border-color var(--md-motion-duration-short2) var(--md-motion-easing-standard),
+    transform var(--md-motion-duration-short2) var(--md-motion-easing-standard);
+}
+
+.status-info-link:hover {
+  color: var(--md-sys-color-primary);
+  border-color: var(--md-sys-color-primary);
+  background: color-mix(in srgb, var(--md-sys-color-primary) 12%, transparent);
+  transform: translateY(-1px);
+}
+
+.status-info-link:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+}
+
 .status-value {
   font-family: var(--md-sys-typescale-mono-font);
   color: var(--md-sys-color-on-surface);

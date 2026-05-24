@@ -46,6 +46,22 @@ cd terralines
 
 Open `http://127.0.0.1:5000`.
 
+## Docker
+
+The container image is published as `ghcr.io/<owner>/ltm_ptb_terralines`.
+
+- Nightly builds run on every push and publish `nightly` plus a short SHA tag.
+- Release builds are manual only and can publish `latest` plus an optional full version tag.
+
+Local build and run:
+
+```powershell
+docker build -t ltm_ptb_terralines:local .
+docker run --rm -p 8000:8000 ltm_ptb_terralines:local
+```
+
+Open `http://127.0.0.1:8000`.
+
 ## Parameters
 
 | Parameter | What it does |
@@ -82,7 +98,10 @@ Supported output sizes: up to 3840x2160 px at up to 300 dpi.
 ```
 terralines/
 ├── app.py           # Flask server, REST endpoints
+├── Dockerfile       # Minimal production container image
 ├── generator.py     # Noise generation and rendering
+├── .github/
+│   └── workflows/   # GitHub Actions for nightly and release builds
 ├── static/          # Stylesheet and favicon
 ├── template/        # Server-side presets
 ├── requirements.txt
