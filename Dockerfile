@@ -29,9 +29,4 @@ CMD ["gunicorn", "--workers", "2", "--threads", "4", "--timeout", "120", "--capt
 
 # Simple healthcheck using Python (no extra packages needed)
 HEALTHCHECK --interval=5s --timeout=3s --start-period=5s --retries=5 \
-    CMD python -c "import sys,urllib.request as r
-try:
-        r.urlopen('http://127.0.0.1:8000/', timeout=2)
-        sys.exit(0)
-except:
-        sys.exit(1)"
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/', timeout=2)"
