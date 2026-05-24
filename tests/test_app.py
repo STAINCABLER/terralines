@@ -78,6 +78,24 @@ class TerralinesAppTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+    def test_generate_accepts_forwarded_https_origin(self):
+        response = self.client.post(
+            '/api/generate',
+            json=self._preview_params(),
+            headers={
+                'Origin': 'https://terralines.ptb.ltm-labs.de',
+                'Host': 'terralines.ptb.ltm-labs.de',
+                'X-Forwarded-Proto': 'https',
+                'X-Forwarded-Host': 'terralines.ptb.ltm-labs.de',
+                'X-Forwarded-For': '203.0.113.10',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertIsInstance(payload, dict)
+        self.assertIn('image', payload)
+
 
 if __name__ == '__main__':
     unittest.main()

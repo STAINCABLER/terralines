@@ -27,6 +27,7 @@ from collections import defaultdict, deque
 from pathlib import Path
 
 from flask import Flask, render_template, request, jsonify, send_file, g
+from werkzeug.middleware.proxy_fix import ProxyFix
 from generator import (
     generate_topography,
     generate_topography_svg,
@@ -48,6 +49,7 @@ app = Flask(
     static_folder=str(BASE_DIR / 'static'),
     static_url_path='/static',
 )
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 app.config['JSON_SORT_KEYS'] = False
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10 MiB pro Request
 app.config['SECRET_KEY'] = os.getenv('TERRALINES_SECRET_KEY', secrets.token_hex(32))
