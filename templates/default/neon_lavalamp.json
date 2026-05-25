@@ -1,6 +1,6 @@
 {
   "name": "Neon Lavalamp",
-  "chip_color": "#263d4f",
+  "chip_color": "#ff4db8",
   "params": {
     "bg_color": "#111213",
     "bg_color_2": "#211f2e",

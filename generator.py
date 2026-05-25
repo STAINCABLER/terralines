@@ -205,7 +205,9 @@ def load_templates() -> dict[str, dict]:
     if not TEMPLATE_DIR.exists() or not TEMPLATE_DIR.is_dir():
         return templates
 
-    for template_file in sorted(TEMPLATE_DIR.glob('*.json')):
+    for template_file in sorted(TEMPLATE_DIR.rglob('*.json')):
+        if not template_file.is_file():
+            continue
         key = template_file.stem
         with template_file.open('r', encoding='utf-8') as handle:
             payload = json.load(handle)
