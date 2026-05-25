@@ -570,16 +570,6 @@
             </select>
           </div>
 
-          <div class="ctrl-row">
-            <span class="ctrl-label">Vorschau-Skala</span>
-            <select class="m3-select" id="sel-preview_scale" onchange="handleSelect('preview_scale', parseFloat(this.value))">
-              <option value="0.25">25% (schnellste)</option>
-              <option value="0.5" selected>50% (Standard)</option>
-              <option value="0.75">75%</option>
-              <option value="1.0">100% (langsam)</option>
-            </select>
-          </div>
-
         </div>
       </div>
 
@@ -587,10 +577,24 @@
 
     <!-- Sidebar-Footer: Aktionsbuttons -->
     <div class="sidebar-footer">
-      <button class="btn-filled" id="btn-generate" onclick="generatePreview()">
-        <i data-lucide="zap" class="lucide lucide-sm"></i>
-        Vorschau generieren
-      </button>
+      <div class="split-action-shell" id="preview-scale-split-group">
+        <div class="split-action-group">
+          <button class="btn-filled split-action-main" id="btn-generate" onclick="generatePreview()">
+            <i data-lucide="zap" class="lucide lucide-sm"></i>
+            Vorschau generieren
+          </button>
+          <button class="btn-filled split-action-toggle" id="btn-preview-scale-toggle" type="button" aria-label="Vorschau-Skala wählen" aria-haspopup="true" aria-expanded="false">
+            <span class="split-action-value" id="preview-scale-label">70%</span>
+            <i data-lucide="chevron-down" class="lucide lucide-sm"></i>
+          </button>
+        </div>
+        <div class="split-dropdown" id="preview-scale-menu" hidden>
+          <button type="button" class="split-dropdown-item" data-preview-scale="0.5">50%</button>
+          <button type="button" class="split-dropdown-item" data-preview-scale="0.7">70% <span class="split-dropdown-note">Standard</span></button>
+          <button type="button" class="split-dropdown-item" data-preview-scale="0.85">85%</button>
+          <button type="button" class="split-dropdown-item" data-preview-scale="1.0">100% <span class="split-dropdown-note">langsam</span></button>
+        </div>
+      </div>
       <button class="btn-outlined" onclick="randomizeAll()">
         <span id="dice-all">
           <i data-lucide="shuffle" class="lucide lucide-sm"></i>
@@ -599,7 +603,7 @@
       </button>
       <button class="btn-outlined" id="btn-export" onclick="exportImage()">
         <i data-lucide="download" class="lucide lucide-sm"></i>
-        PNG exportieren (Vollauflösung)
+        PNG exportieren
       </button>
       <button class="btn-outlined" id="btn-export-svg" onclick="exportSVG()">
         <i data-lucide="download" class="lucide lucide-sm"></i>
@@ -621,8 +625,9 @@
       </div>
 
       <!-- Generiertes Bild -->
-      <img class="preview-img" id="preview-img" alt="Topografie-Vorschau"
-           style="display:none;" />
+       <img class="preview-img" id="preview-img" alt="Topografie-Vorschau"
+         draggable="false"
+         style="display:none;" />
 
       <!-- Ladeoverlay -->
       <div class="loading-overlay" id="loading-overlay">
@@ -638,6 +643,15 @@
       <span>Auflösung: <span class="status-value" id="status-res">–</span></span>
       <span>Renderzeit: <span class="status-value" id="status-time">–</span></span>
       <span>Seed: <span class="status-value" id="status-seed">–</span></span>
+      <button
+        class="status-center-link"
+        id="btn-center-preview"
+        type="button"
+        title="Vorschau zentrieren"
+        aria-label="Vorschau zentrieren"
+      >
+        <i data-lucide="minimize-2" class="lucide lucide-sm"></i>
+      </button>
       <a
         class="status-info-link"
         href="https://ltm-labs.de"
@@ -935,11 +949,10 @@
     const bgModeSel = document.getElementById('sel-bg_mode');
     if (bgModeSel) bgModeSel.value = params.bg_mode || 'flat';
     toggleGradientControls();
-    // DPI + preview_scale selects
+    // DPI select
     const dpiSel = document.getElementById('sel-dpi');
     if (dpiSel && params.dpi) dpiSel.value = params.dpi;
-    const psSel = document.getElementById('sel-preview_scale');
-    if (psSel && params.preview_scale) psSel.value = params.preview_scale;
+    updatePreviewScaleControl();
 
     // Toggle
     const gridSwitch = document.getElementById('sw-show_grid');
@@ -970,6 +983,71 @@
     if (autoGenTimer) clearTimeout(autoGenTimer);
     saveParamsToHash();
     autoGenTimer = setTimeout(() => generatePreview(), AUTO_GEN_DELAY_MS);
+  }
+
+  function getPreviewScaleLabel(value) {
+    const scale = Math.max(0.1, Math.min(1.0, Number(value) || 0.7));
+    return `${Math.round(scale * 100)}%`;
+  }
+
+  function updatePreviewScaleControl() {
+    const label = document.getElementById('preview-scale-label');
+    const current = params.preview_scale ?? 0.7;
+    if (label) label.textContent = getPreviewScaleLabel(current);
+
+    const menu = document.getElementById('preview-scale-menu');
+    if (menu) {
+      menu.querySelectorAll('.split-dropdown-item').forEach((item) => {
+        const itemScale = parseFloat(item.dataset.previewScale || '0');
+        item.classList.toggle('active', Math.abs(itemScale - current) < 0.001);
+      });
+    }
+  }
+
+  function closePreviewScaleMenu() {
+    const menu = document.getElementById('preview-scale-menu');
+    const toggle = document.getElementById('btn-preview-scale-toggle');
+    const group = document.getElementById('preview-scale-split-group');
+    if (menu) menu.hidden = true;
+    if (toggle) toggle.setAttribute('aria-expanded', 'false');
+    if (group) {
+      group.classList.remove('menu-up', 'menu-down');
+    }
+  }
+
+  function openPreviewScaleMenu() {
+    const menu = document.getElementById('preview-scale-menu');
+    const toggle = document.getElementById('btn-preview-scale-toggle');
+    const group = document.getElementById('preview-scale-split-group');
+    if (!menu || !toggle || !group) return;
+
+    menu.hidden = false;
+    const menuHeight = menu.scrollHeight || 220;
+    const toggleRect = toggle.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - toggleRect.bottom;
+    const spaceAbove = toggleRect.top;
+    const openDown = spaceBelow >= menuHeight || spaceBelow >= spaceAbove;
+
+    group.classList.toggle('menu-down', openDown);
+    group.classList.toggle('menu-up', !openDown);
+    toggle.setAttribute('aria-expanded', 'true');
+  }
+
+  function togglePreviewScaleMenu(forceOpen = null) {
+    const menu = document.getElementById('preview-scale-menu');
+    if (!menu) return;
+    const shouldOpen = forceOpen === null ? menu.hidden : !!forceOpen;
+    if (shouldOpen) openPreviewScaleMenu();
+    else closePreviewScaleMenu();
+  }
+
+  function applyPreviewScale(value) {
+    const next = Math.max(0.1, Math.min(1.0, parseFloat(value)));
+    if (Number.isNaN(next)) return;
+    params.preview_scale = next;
+    saveParamsToHash();
+    updatePreviewScaleControl();
+    closePreviewScaleMenu();
   }
 
   /** Generiert eine Vorschau via POST /api/generate. */
@@ -1093,6 +1171,7 @@
     img.src = `data:image/png;base64,${data.image}`;
     img.style.display = 'block';
     resetViewport();
+    updateCenterPreviewButtonState();
 
     // Statusleiste aktualisieren
     statusbar.style.display = 'flex';
@@ -1278,6 +1357,7 @@
     if (!img) return;
     img.style.transform = `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.scale})`;
     img.style.transformOrigin = 'center center';
+    updateCenterPreviewButtonState();
   }
 
   function resetViewport() {
@@ -1285,6 +1365,22 @@
     viewport.x = 0;
     viewport.y = 0;
     applyViewportTransform();
+  }
+
+  function centerPreview() {
+    resetViewport();
+  }
+
+  function hasViewportChanged() {
+    return Math.abs(viewport.scale - 1.0) > 0.001 || Math.abs(viewport.x) > 0.5 || Math.abs(viewport.y) > 0.5;
+  }
+
+  function updateCenterPreviewButtonState() {
+    const button = document.getElementById('btn-center-preview');
+    if (!button) return;
+    const img = document.getElementById('preview-img');
+    const enabled = !!img && img.style.display !== 'none' && hasViewportChanged();
+    button.disabled = !enabled;
   }
 
   function loadUserPresets() {
@@ -1602,6 +1698,7 @@
     renderPresetList(false);
 
     const wrapper = document.getElementById('preview-wrapper');
+    const previewImg = document.getElementById('preview-img');
     if (wrapper) {
       wrapper.addEventListener('wheel', (e) => {
         e.preventDefault();
@@ -1610,15 +1707,19 @@
         applyViewportTransform();
       }, { passive: false });
 
-      wrapper.addEventListener('mousedown', (e) => {
-        if (e.button !== 0) return;
-        viewport.isDragging = true;
-        viewport.dragStartX = e.clientX;
-        viewport.dragStartY = e.clientY;
-        viewport.dragStartVX = viewport.x;
-        viewport.dragStartVY = viewport.y;
-        wrapper.style.cursor = 'grabbing';
-      });
+      if (previewImg) {
+        previewImg.addEventListener('mousedown', (e) => {
+          if (e.button !== 0) return;
+          viewport.isDragging = true;
+          viewport.dragStartX = e.clientX;
+          viewport.dragStartY = e.clientY;
+          viewport.dragStartVX = viewport.x;
+          viewport.dragStartVY = viewport.y;
+          previewImg.style.cursor = 'grabbing';
+        });
+
+        previewImg.addEventListener('dragstart', (e) => e.preventDefault());
+      }
 
       wrapper.addEventListener('dblclick', resetViewport);
     }
@@ -1632,7 +1733,7 @@
 
     window.addEventListener('mouseup', () => {
       viewport.isDragging = false;
-      if (wrapper) wrapper.style.cursor = 'grab';
+      if (previewImg) previewImg.style.cursor = 'grab';
     });
 
     const hmInput = document.getElementById('heightmap-input');
@@ -1675,6 +1776,37 @@
     if (templatesScrollNext) {
       templatesScrollNext.addEventListener('click', () => scrollTemplatesToEdge('right'));
     }
+
+    const centerPreviewButton = document.getElementById('btn-center-preview');
+    if (centerPreviewButton) {
+      centerPreviewButton.addEventListener('click', centerPreview);
+    }
+
+    const splitToggle = document.getElementById('btn-preview-scale-toggle');
+    const splitMenu = document.getElementById('preview-scale-menu');
+    const splitGroup = document.getElementById('preview-scale-split-group');
+    if (splitToggle) {
+      splitToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        togglePreviewScaleMenu();
+      });
+    }
+    if (splitMenu) {
+      splitMenu.addEventListener('click', (e) => {
+        const target = e.target.closest('[data-preview-scale]');
+        if (!target) return;
+        applyPreviewScale(target.dataset.previewScale);
+        generatePreview();
+      });
+    }
+    document.addEventListener('click', (e) => {
+      if (!splitGroup) return;
+      if (!splitGroup.contains(e.target)) closePreviewScaleMenu();
+    });
+    window.addEventListener('blur', closePreviewScaleMenu);
+
+    updateCenterPreviewButtonState();
+    updatePreviewScaleControl();
 
     // Beim Start direkt eine Vorschau generieren
     setTimeout(() => generatePreview(), 300);

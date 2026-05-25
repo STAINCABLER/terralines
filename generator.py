@@ -54,7 +54,7 @@ class TopoParams:
     width: int          = 1920    # Bildbreite in Pixeln
     height: int         = 1080   # Bildhöhe in Pixeln
     dpi: int            = 96     # Rendering-DPI (96 = Bildschirm-Standard)
-    preview_scale: float= 0.5   # Skalierungsfaktor für Vorschau (< 1 = schneller)
+    preview_scale: float= 0.7   # Skalierungsfaktor für Vorschau (< 1 = schneller)
 
     # ── Farben ───────────────────────────────────────────────────────────────
     bg_color: str        = "#0d0d0d"  # Hintergrundfarbe

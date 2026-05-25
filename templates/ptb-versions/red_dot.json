@@ -30,7 +30,7 @@
     "line_width": 1.3,
     "octaves": 3,
     "persistence": 0.65,
-    "preview_scale": 0.5,
+    "preview_scale": 0.7,
     "scale": 394,
     "seed": 7387,
     "show_grid": false,

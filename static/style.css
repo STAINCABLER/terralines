@@ -637,6 +637,129 @@ html, body {
   border-top: 1px solid var(--md-sys-color-outline-variant);
 }
 
+.split-action-shell {
+  position: relative;
+  width: 100%;
+  overflow: visible;
+  border-radius: var(--md-shape-full);
+  background: var(--md-sys-color-primary);
+  box-shadow: none;
+  transition: box-shadow var(--md-motion-duration-short2) ease,
+              transform var(--md-motion-duration-short2) ease;
+}
+
+.split-action-shell:hover {
+  box-shadow: var(--md-elevation-1);
+}
+
+.split-action-group {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  border-radius: inherit;
+  overflow: hidden;
+  background: transparent;
+}
+
+.split-action-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.split-action-toggle {
+  flex: 0 0 76px;
+  width: 76px;
+  padding: 0 12px;
+  gap: 4px;
+  border-left: 1px solid color-mix(in srgb, var(--md-sys-color-on-primary) 18%, transparent);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  position: relative;
+  background: transparent;
+  box-shadow: none;
+}
+
+.split-action-toggle::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background: color-mix(in srgb, var(--md-sys-color-on-primary) 28%, transparent);
+  pointer-events: none;
+}
+
+.split-action-group > .btn-filled:hover {
+  box-shadow: none;
+}
+
+.split-action-group > .split-action-main:hover,
+.split-action-group > .split-action-toggle:hover {
+  background: color-mix(in srgb, var(--md-sys-color-on-primary) 10%, transparent);
+}
+
+.split-action-group > .split-action-main:active,
+.split-action-group > .split-action-toggle:active {
+  opacity: .9;
+}
+
+.split-action-value {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+}
+
+.split-dropdown {
+  position: absolute;
+  right: 0;
+  min-width: 176px;
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--md-sys-color-surface-container-highest);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  box-shadow: var(--md-elevation-3);
+  z-index: 20;
+}
+
+.split-action-shell.menu-up .split-dropdown {
+  bottom: calc(100% + 8px);
+}
+
+.split-action-shell.menu-down .split-dropdown {
+  top: calc(100% + 8px);
+}
+
+.split-dropdown-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--md-sys-color-on-surface);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.split-dropdown-item:hover,
+.split-dropdown-item.active {
+  background: color-mix(in srgb, var(--md-sys-color-primary) 12%, transparent);
+  color: var(--md-sys-color-primary);
+}
+
+.split-dropdown-note {
+  font-size: 11px;
+  opacity: .7;
+}
+
 /* M3 Filled Button */
 .btn-filled {
   display: flex;
@@ -685,6 +808,42 @@ html, body {
 }
 .btn-outlined:disabled { opacity: .38; cursor: default; }
 
+/* Final split-button overrides: must win over the generic .btn-filled rules above. */
+.sidebar-footer .split-action-shell {
+  border-radius: var(--md-shape-full);
+  background: var(--md-sys-color-primary);
+  box-shadow: none;
+}
+
+.sidebar-footer .split-action-group {
+  border-radius: inherit;
+  background: transparent;
+}
+
+.sidebar-footer .split-action-group > .btn-filled.split-action-main,
+.sidebar-footer .split-action-group > .btn-filled.split-action-toggle {
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--md-sys-color-on-primary);
+}
+
+.sidebar-footer .split-action-group > .btn-filled.split-action-main:hover,
+.sidebar-footer .split-action-group > .btn-filled.split-action-toggle:hover {
+  background: color-mix(in srgb, var(--md-sys-color-on-primary) 10%, transparent);
+  box-shadow: none;
+}
+
+.sidebar-footer .split-action-group > .btn-filled.split-action-main:active,
+.sidebar-footer .split-action-group > .btn-filled.split-action-toggle:active {
+  opacity: .9;
+}
+
+.sidebar-footer .split-action-toggle::before {
+  z-index: 1;
+}
+
+
 /* ── Main Preview Area ────────────────────────────────────────────────── */
 .preview-area {
   background: var(--md-sys-color-background);
@@ -714,7 +873,6 @@ html, body {
   width: 100%;
   padding: 24px;
   overflow: hidden;
-  cursor: grab;
 }
 
 .preview-img {
@@ -726,6 +884,11 @@ html, body {
   display: block;
   transition: none;
   will-change: transform;
+  cursor: grab;
+}
+
+.preview-img:active {
+  cursor: grabbing;
 }
 
 /* Skeleton / Ladestate */
@@ -835,6 +998,42 @@ html, body {
     color var(--md-motion-duration-short2) var(--md-motion-easing-standard),
     border-color var(--md-motion-duration-short2) var(--md-motion-easing-standard),
     transform var(--md-motion-duration-short2) var(--md-motion-easing-standard);
+}
+
+.status-center-link {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--md-sys-color-on-surface-variant);
+  background: color-mix(in srgb, var(--md-sys-color-on-surface) 4%, transparent);
+  cursor: pointer;
+  padding: 0;
+  flex: 0 0 auto;
+  transition:
+    background var(--md-motion-duration-short2) var(--md-motion-easing-standard),
+    color var(--md-motion-duration-short2) var(--md-motion-easing-standard),
+    border-color var(--md-motion-duration-short2) var(--md-motion-easing-standard),
+    transform var(--md-motion-duration-short2) var(--md-motion-easing-standard);
+}
+
+.status-center-link:hover {
+  color: var(--md-sys-color-primary);
+  border-color: var(--md-sys-color-primary);
+  background: color-mix(in srgb, var(--md-sys-color-primary) 12%, transparent);
+  transform: translateY(-1px);
+}
+
+.status-center-link:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+}
+
+.status-center-link:disabled {
+  display: none;
 }
 
 .status-info-link:hover {
