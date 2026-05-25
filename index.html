@@ -73,11 +73,25 @@
              style="display:none;" onchange="importUserPresets(this)" />
     </div>
     <div class="preset-divider" aria-hidden="true"></div>
-    <div class="templates-scroll" id="templates-scroll">
-      <div class="templates-track">
-        <span class="preset-label">Templates</span>
-        <div class="templates-group" id="server-preset-chips"></div>
-        <div class="templates-group" id="user-preset-chips"></div>
+    <div class="templates-caption">
+      <span class="preset-label preset-label-static">Templates</span>
+    </div>
+    <div class="templates-scroll-shell">
+      <div class="templates-scroll" id="templates-scroll">
+        <div class="templates-track">
+          <div class="templates-group" id="server-preset-chips"></div>
+          <div class="templates-group" id="user-preset-chips"></div>
+        </div>
+      </div>
+      <div class="templates-hint-edge templates-hint-edge-left" aria-hidden="true">
+        <button class="templates-hint templates-hint-left" id="templates-scroll-prev" type="button" aria-label="Templates nach links scrollen">
+          <i data-lucide="chevron-left" class="lucide lucide-sm"></i>
+        </button>
+      </div>
+      <div class="templates-hint-edge templates-hint-edge-right" aria-hidden="true">
+        <button class="templates-hint templates-hint-right" id="templates-scroll-next" type="button" aria-label="Templates nach rechts scrollen">
+          <i data-lucide="chevron-right" class="lucide lucide-sm"></i>
+        </button>
       </div>
     </div>
   </div>
@@ -659,6 +673,9 @@
   /** Debounce-Timer für Auto-Generate */
   let autoGenTimer = null;
   const AUTO_GEN_DELAY_MS = 900;  // ms nach letzter Änderung
+
+  /** Animations-Handle für den Template-Strip */
+  let templatesScrollAnimationFrame = null;
 
   /** Merkt ob gerade ein Request läuft */
   let isGenerating = false;
@@ -1322,10 +1339,29 @@
     generatePreview();
   }
 
-  function renderServerTemplateList() {
+  function renderServerTemplateList(keepCurrentScroll = true) {
     const container = document.getElementById('server-preset-chips');
     if (!container) return;
     container.innerHTML = '';
+
+    const scrollArea = document.getElementById('templates-scroll');
+    const preserveScrollLeft = keepCurrentScroll && scrollArea ? scrollArea.scrollLeft : 0;
+
+    const getGhostBorderColor = (hexColor) => {
+      const hex = String(hexColor || '').replace('#', '').trim();
+      if (!/^[0-9a-fA-F]{6}$/.test(hex)) {
+        return 'rgba(240, 240, 240, 0.14)';
+      }
+
+      const red = parseInt(hex.slice(0, 2), 16);
+      const green = parseInt(hex.slice(2, 4), 16);
+      const blue = parseInt(hex.slice(4, 6), 16);
+      const luminance = (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255;
+
+      if (luminance < 0.28) return 'rgba(244, 244, 244, 0.34)';
+      if (luminance < 0.45) return 'rgba(244, 244, 244, 0.22)';
+      return 'rgba(244, 244, 244, 0.12)';
+    };
 
     Object.entries(SERVER_TEMPLATES).forEach(([key, tpl]) => {
       const chip = document.createElement('button');
@@ -1335,6 +1371,7 @@
       const dot = document.createElement('span');
       dot.className = 'chip-dot';
       dot.style.background = tpl.chip_color || '#666666';
+      dot.style.borderColor = getGhostBorderColor(tpl.chip_color || '#666666');
 
       const text = document.createElement('span');
       text.textContent = tpl.name || key;
@@ -1344,12 +1381,24 @@
       chip.onclick = () => applyPreset(key);
       container.appendChild(chip);
     });
+
+    requestAnimationFrame(() => {
+      const templatesScroll = document.getElementById('templates-scroll');
+      if (templatesScroll) {
+        const maxScrollLeft = Math.max(0, templatesScroll.scrollWidth - templatesScroll.clientWidth);
+        templatesScroll.scrollLeft = Math.min(preserveScrollLeft, maxScrollLeft);
+      }
+      updateTemplateScrollState();
+    });
   }
 
-  function renderPresetList() {
+  function renderPresetList(keepCurrentScroll = true) {
     const container = document.getElementById('user-preset-chips');
     if (!container) return;
     container.innerHTML = '';
+
+    const scrollArea = document.getElementById('templates-scroll');
+    const preserveScrollLeft = keepCurrentScroll && scrollArea ? scrollArea.scrollLeft : 0;
 
     const userPresets = loadUserPresets();
 
@@ -1378,6 +1427,89 @@
     });
 
     lucide.createIcons();
+    requestAnimationFrame(() => {
+      const templatesScroll = document.getElementById('templates-scroll');
+      if (templatesScroll) {
+        const maxScrollLeft = Math.max(0, templatesScroll.scrollWidth - templatesScroll.clientWidth);
+        templatesScroll.scrollLeft = Math.min(preserveScrollLeft, maxScrollLeft);
+      }
+      updateTemplateScrollState();
+    });
+  }
+
+  function easeOutQuint(t) {
+    return 1 - Math.pow(1 - t, 5);
+  }
+
+  function animateTemplatesScrollTo(targetLeft, durationMs = 420) {
+    const scrollArea = document.getElementById('templates-scroll');
+    if (!scrollArea) return;
+
+    const maxScrollLeft = Math.max(0, scrollArea.scrollWidth - scrollArea.clientWidth);
+    const startLeft = scrollArea.scrollLeft;
+    const endLeft = Math.max(0, Math.min(targetLeft, maxScrollLeft));
+
+    if (templatesScrollAnimationFrame !== null) {
+      cancelAnimationFrame(templatesScrollAnimationFrame);
+      templatesScrollAnimationFrame = null;
+    }
+
+    if (Math.abs(endLeft - startLeft) < 1) {
+      scrollArea.scrollLeft = endLeft;
+      updateTemplateScrollState();
+      return;
+    }
+
+    const startTime = performance.now();
+    const step = (now) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(1, elapsed / durationMs);
+      const eased = easeOutQuint(progress);
+      scrollArea.scrollLeft = startLeft + (endLeft - startLeft) * eased;
+
+      if (progress < 1) {
+        templatesScrollAnimationFrame = requestAnimationFrame(step);
+      } else {
+        templatesScrollAnimationFrame = null;
+        updateTemplateScrollState();
+      }
+    };
+
+    templatesScrollAnimationFrame = requestAnimationFrame(step);
+  }
+
+  function scrollTemplatesToEdge(direction) {
+    const scrollArea = document.getElementById('templates-scroll');
+    if (!scrollArea) return;
+
+    const maxScrollLeft = Math.max(0, scrollArea.scrollWidth - scrollArea.clientWidth);
+    if (maxScrollLeft <= 0) return;
+
+    animateTemplatesScrollTo(direction === 'left' ? 0 : maxScrollLeft);
+  }
+
+  function updateTemplateScrollState() {
+    const scrollArea = document.getElementById('templates-scroll');
+    if (!scrollArea) return;
+    const leftHint = document.querySelector('.templates-hint-edge-left');
+    const rightHint = document.querySelector('.templates-hint-edge-right');
+
+    const scrollable = scrollArea.scrollWidth > scrollArea.clientWidth + 1;
+    const atStart = scrollArea.scrollLeft <= 1;
+    const atEnd = scrollArea.scrollLeft + scrollArea.clientWidth >= scrollArea.scrollWidth - 1;
+
+    scrollArea.classList.toggle('is-scrollable', scrollable);
+    scrollArea.classList.toggle('at-start', atStart);
+    scrollArea.classList.toggle('at-end', atEnd);
+
+    if (leftHint) {
+      const leftVisible = scrollable && !atStart;
+      leftHint.classList.toggle('is-visible', leftVisible);
+    }
+    if (rightHint) {
+      const rightVisible = scrollable && !atEnd;
+      rightHint.classList.toggle('is-visible', rightVisible);
+    }
   }
 
   function deleteUserPreset(name) {
@@ -1463,11 +1595,11 @@
     const fromHash = loadParamsFromHash();
     if (fromHash) Object.assign(params, fromHash);
 
-    renderServerTemplateList();
+    renderServerTemplateList(false);
     // Swatch-Farben aus initialen params setzen
     syncUIToParams();
     initSliderTracks();
-    renderPresetList();
+    renderPresetList(false);
 
     const wrapper = document.getElementById('preview-wrapper');
     if (wrapper) {
@@ -1529,11 +1661,25 @@
           e.preventDefault();
         }
       }, { passive: false });
+
+      templatesScroll.addEventListener('scroll', updateTemplateScrollState, { passive: true });
+      window.addEventListener('resize', updateTemplateScrollState);
+      updateTemplateScrollState();
+    }
+
+    const templatesScrollPrev = document.getElementById('templates-scroll-prev');
+    const templatesScrollNext = document.getElementById('templates-scroll-next');
+    if (templatesScrollPrev) {
+      templatesScrollPrev.addEventListener('click', () => scrollTemplatesToEdge('left'));
+    }
+    if (templatesScrollNext) {
+      templatesScrollNext.addEventListener('click', () => scrollTemplatesToEdge('right'));
     }
 
     // Beim Start direkt eine Vorschau generieren
     setTimeout(() => generatePreview(), 300);
     lucide.createIcons();
+    updateTemplateScrollState();
   });
 </script>
 </body>
