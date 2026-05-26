@@ -83,6 +83,16 @@ jobs:
           tags: ltm_ptb_terralines:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Generate SBOM (Syft)
+        uses: anchore/syft-action@v2
+        with:
+          image: ltm_ptb_terralines:ci
+          output: sbom.json
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.json
 
   scan:
     runs-on: ubuntu-latest
