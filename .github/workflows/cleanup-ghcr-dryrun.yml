@@ -1,0 +1,59 @@
+name: Cleanup GHCR Dry-Run
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: 'Threshold in days to consider old images (default 7)'
+        required: false
+        default: '7'
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: List old PR/Nightly images (dry-run)
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const owner = context.repo.owner;
+            const packageName = 'terralines';
+            const thresholdDays = parseInt(core.getInput('days') || '7', 10);
+            const cutoff = new Date(Date.now() - thresholdDays * 24 * 60 * 60 * 1000);
+            let isOrg = true;
+            try {
+              await github.rest.orgs.get({ org: owner });
+            } catch (e) {
+              isOrg = false;
+            }
+            let resp;
+            if (isOrg) {
+              resp = await github.rest.packages.listPackageVersionsForPackageOwnedByOrg({ org: owner, package_type: 'container', package_name: packageName, per_page: 100 });
+            } else {
+              resp = await github.rest.packages.listPackageVersionsForPackageOwnedByUser({ username: owner, package_type: 'container', package_name: packageName, per_page: 100 });
+            }
+            const versions = resp.data || [];
+            const candidates = [];
+            for (const v of versions) {
+              const created = new Date(v.created_at);
+              const tags = (v.metadata && v.metadata.container && v.metadata.container.tags) || [];
+              const isPrOrNightly = tags.some(t => t.startsWith('pr-') || t.startsWith('nightly-'));
+              if (isPrOrNightly && created < cutoff) {
+                candidates.push({ id: v.id, created_at: v.created_at, tags });
+              }
+            }
+            const out = { thresholdDays, cutoff: cutoff.toISOString(), candidates };
+            fs.writeFileSync('./ghcr_cleanup_dryrun.json', JSON.stringify(out, null, 2));
+            core.setOutput('count', candidates.length);
+            return out;
+      - name: Upload dry-run report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghcr-cleanup-dryrun
+          path: ghcr_cleanup_dryrun.json
