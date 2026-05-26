@@ -1,0 +1,53 @@
+name: Cleanup GHCR PR/Nightly Images
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Cleanup old PR/Nightly images in GHCR
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const packageName = 'terralines';
+            const thresholdDays = 7;
+            const cutoff = new Date(Date.now() - thresholdDays * 24 * 60 * 60 * 1000);
+            let isOrg = true;
+            try {
+              await github.rest.orgs.get({ org: owner });
+            } catch (e) {
+              isOrg = false;
+            }
+            let resp;
+            if (isOrg) {
+              resp = await github.rest.packages.listPackageVersionsForPackageOwnedByOrg({ org: owner, package_type: 'container', package_name: packageName, per_page: 100 });
+            } else {
+              resp = await github.rest.packages.listPackageVersionsForPackageOwnedByUser({ username: owner, package_type: 'container', package_name: packageName, per_page: 100 });
+            }
+            const versions = resp.data || [];
+            const deleted = [];
+            for (const v of versions) {
+              const created = new Date(v.created_at);
+              const tags = (v.metadata && v.metadata.container && v.metadata.container.tags) || [];
+              const isPrOrNightly = tags.some(t => t.startsWith('pr-') || t.startsWith('nightly-'));
+              if (isPrOrNightly && created < cutoff) {
+                if (isOrg) {
+                  await github.rest.packages.deletePackageVersionForOrg({ org: owner, package_type: 'container', package_name: packageName, package_version_id: v.id });
+                } else {
+                  await github.rest.packages.deletePackageVersionForUser({ username: owner, package_type: 'container', package_name: packageName, package_version_id: v.id });
+                }
+                deleted.push({ id: v.id, tags });
+              }
+            }
+            core.info(`Deleted ${deleted.length} package versions`);
+            return { deleted };
