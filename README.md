@@ -61,6 +61,73 @@ docker run --rm -p 8000:8000 ltm_ptb_terralines:local
 
 Open `http://127.0.0.1:8000`.
 
+## Containerbetrieb (Docker Compose)
+
+Kurzanleitung — lokal (Produktionsnah):
+
+```powershell
+# Build & start (erstes Mal / nach Code-Änderungen)
+docker compose build
+docker compose up -d
+
+# Logs eines Dienstes
+docker compose logs -f web
+
+# Neustart mit Rebuild
+docker compose up -d --build web
+```
+
+Wichtiges zur Konfiguration
+
+- `web`: Flask-Anwendung, hört auf Port `8000`. Liefert UI und API. Das Image enthält den Quellcode (kein automatisches Mount). Bei Code-Änderungen das Image neu bauen.
+- `redis`: Redis-Server (RQ-Backend).
+- `worker`: RQ-Worker, liest Jobs aus Redis, rendert asynchron (falls aktiviert) und schreibt Ergebnis-PNGs nach `TERRALINES_RESULTS_DIR`.
+- Gemeinsamer Ordner: `./tmp/terralines_results:/tmp/terralines_results` — hier schreibt der Worker persistente PNG-Dateien, die der `web`-Service ausliefert.
+
+Wichtige Umgebungsvariablen
+
+- `REDIS_URL` — z.B. `redis://redis:6379/0` (für `web` und `worker`).
+- `TERRALINES_RESULTS_DIR` — Verzeichnis für persistente Resultate (Container-intern: `/tmp/terralines_results`).
+- `TERRALINES_MAX_CONCURRENCY` — Anzahl paralleler Generierungen (Semaphore).
+- `MPLCONFIGDIR` — beschreibbares Verzeichnis für Matplotlib (z.B. `/tmp/matplotlib`).
+
+Dev-Workflow (schnell testen)
+
+- Lokales Development ohne Image-Rebuild: binde den Quellcode in den Container (nur für lokales Debugging):
+
+```powershell
+docker run --rm -it -p 8000:8000 -v ${PWD}:/app -v ${PWD}/tmp/terralines_results:/tmp/terralines_results \
+	--env MPLCONFIGDIR=/tmp/matplotlib \
+	python:3.12-slim-bookworm bash
+# im Container:
+pip install -r requirements.txt
+python app.py
+```
+
+Production / CI
+
+- Build image in CI and push zu einer Registry (z. B. GitHub Container Registry):
+
+```powershell
+docker build -t ghcr.io/<owner>/<repo>:<tag> .
+docker push ghcr.io/<owner>/<repo>:<tag>
+```
+
+- Auf dem Server: `docker compose pull && docker compose up -d` oder orchestrieren via Kubernetes/nomad, wobei `TERRALINES_RESULTS_DIR` als persistent volume gemountet werden muss.
+
+Wie die Container zusammenarbeiten (Kurz)
+
+1. Das Frontend/`web` liefert UI und synchronen API-Endpunkt (`/api/generate`) sowie asynchrone Endpunkte (`/api/generate_async`, `/api/generate_rq`).
+2. Für leichte Lasten bearbeitet `web` Jobs in-process (Semaphore + `job_queue.py`).
+3. Für langlebige/asynchrone Jobs kann `web` Jobs in RQ/Redis enqueuen; der `worker` nimmt Jobs aus Redis, führt die Generierung durch und schreibt PNGs nach `TERRALINES_RESULTS_DIR`.
+4. `web` bietet `/results/<file>` und `/api/job/<id>/download` an, die die Dateien aus `TERRALINES_RESULTS_DIR` (oder Inline-Resultate) sicher ausliefern.
+
+Fehlerbehebung
+
+- Wenn `/results/...` 404 liefert: prüfen, ob `./tmp/terralines_results` existiert und die Datei drin ist; prüfen Sie `docker compose logs web` und `docker compose logs worker`.
+- Nach Code-Änderungen: `docker compose build web && docker compose up -d web` (weil das Image den Code enthält).
+
+
 ## Parameters
 
 | Parameter | What it does |

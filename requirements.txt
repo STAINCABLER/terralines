@@ -8,3 +8,5 @@ matplotlib==3.10.8    # Konturlinien-Rendering (Agg-Backend)
 pillow==12.2.0        # Bildverarbeitung für Heightmap-Upload
 flask-talisman==1.1.0 # Security Headers & CSRF Protection
 gunicorn==23.0.0      # Produktions-WSGI-Server für Container
+rq                    # Redis Queue (optional für async workers)
+redis>=5.0.0,<6       # Redis client for Python (5.x series compatible)

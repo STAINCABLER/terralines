@@ -22,12 +22,26 @@ import base64
 import os
 import time
 import threading
+import logging
 import secrets
 from collections import defaultdict, deque
 from pathlib import Path
 
-from flask import Flask, render_template, request, jsonify, send_file, g
+from flask import Flask, render_template, request, jsonify, send_file, g, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
+# Ensure matplotlib can write config cache when running in containers
+os.environ.setdefault('MPLCONFIGDIR', os.environ.get('MPLCONFIGDIR', '/tmp/matplotlib'))
+
+from job_queue import enqueue as enqueue_job, get_job as get_job_status
+# RQ tasks (optional)
+try:
+    import tasks as rq_tasks
+    from redis import Redis
+    _rq_available = True
+except Exception:
+    rq_tasks = None
+    _rq_available = False
+
 from generator import (
     generate_topography,
     generate_topography_svg,
@@ -49,10 +63,12 @@ app = Flask(
     static_folder=str(BASE_DIR / 'static'),
     static_url_path='/static',
 )
+app.logger.setLevel(logging.DEBUG)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 app.config['JSON_SORT_KEYS'] = False
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10 MiB pro Request
 app.config['SECRET_KEY'] = os.getenv('TERRALINES_SECRET_KEY', secrets.token_hex(32))
+
 
 MAX_HEIGHTMAP_BYTES = 8 * 1024 * 1024
 RATE_LIMIT_WINDOW_SECONDS = int(os.getenv('TERRALINES_RATE_LIMIT_WINDOW_SECONDS', '60'))
@@ -61,6 +77,22 @@ TRUSTED_PROXIES = [ip.strip() for ip in os.getenv('TERRALINES_TRUSTED_PROXIES', 
 
 _rate_limit_lock = threading.Lock()
 _rate_limit_hits: dict[str, deque[float]] = defaultdict(deque)
+
+# Concurrency control for generation tasks (default: 1 concurrent)
+GENERATE_CONCURRENCY = int(os.getenv('TERRALINES_MAX_CONCURRENCY', '1'))
+GENERATE_SEMAPHORE = threading.Semaphore(GENERATE_CONCURRENCY)
+
+
+def _run_with_semaphore(func, *args, **kwargs):
+    """Run `func` while holding the global generation semaphore."""
+    GENERATE_SEMAPHORE.acquire()
+    try:
+        return func(*args, **kwargs)
+    finally:
+        try:
+            GENERATE_SEMAPHORE.release()
+        except Exception:
+            pass
 
 
 def _json_error(message: str, status: int):
@@ -215,11 +247,24 @@ def api_generate():
     if error:
         return error
 
+    # Try to serve synchronously if a concurrency slot is free; otherwise
+    # inform caller to use async endpoint.
+    acquired = GENERATE_SEMAPHORE.acquire(blocking=False)
+    if not acquired:
+        resp = jsonify({'error': 'Server busy — zu viele parallele Generierungen', 'hint': 'Nutze /api/generate_async'}), 429
+        return resp
+
     try:
-        result = generate_topography(params, preview=True)
-        return jsonify(result)
-    except Exception as exc:
-        return _handle_api_exception(exc, '/api/generate')
+        try:
+            result = generate_topography(params, preview=True)
+            return jsonify(result)
+        except Exception as exc:
+            return _handle_api_exception(exc, '/api/generate')
+    finally:
+        try:
+            GENERATE_SEMAPHORE.release()
+        except Exception:
+            pass
 
 
 @app.route('/api/export', methods=['POST'])
@@ -235,10 +280,22 @@ def api_export():
     if error:
         return error
 
+    # For exports, behave similarly: if no slot is available, ask client to use async
+    acquired = GENERATE_SEMAPHORE.acquire(blocking=False)
+    if not acquired:
+        resp = jsonify({'error': 'Server busy — zu viele parallele Exporte', 'hint': 'Nutze /api/generate_async'}), 429
+        return resp
+
     try:
-        result = generate_topography(params, preview=False)
-    except Exception as exc:
-        return _handle_api_exception(exc, '/api/export')
+        try:
+            result = generate_topography(params, preview=False)
+        except Exception as exc:
+            return _handle_api_exception(exc, '/api/export')
+    finally:
+        try:
+            GENERATE_SEMAPHORE.release()
+        except Exception:
+            pass
 
     # Base64 → Bytes → Flask-Response
     img_bytes = base64.b64decode(result['image'])
@@ -306,11 +363,183 @@ def api_generate_heightmap():
     except ValueError as exc:
         return _json_error(str(exc), 413)
 
+    # Attempt synchronous handling with semaphore
+    acquired = GENERATE_SEMAPHORE.acquire(blocking=False)
+    if not acquired:
+        resp = jsonify({'error': 'Server busy — zu viele parallele Generierungen', 'hint': 'Nutze /api/generate_async'}), 429
+        return resp
+
     try:
-        result = generate_topography(params, preview=True, heightmap_data=heightmap_bytes)
-        return jsonify(result)
+        try:
+            result = generate_topography(params, preview=True, heightmap_data=heightmap_bytes)
+            return jsonify(result)
+        except Exception as exc:
+            return _handle_api_exception(exc, '/api/generate/heightmap')
+    finally:
+        try:
+            GENERATE_SEMAPHORE.release()
+        except Exception:
+            pass
+
+
+@app.route('/api/generate_async', methods=['POST'])
+def api_generate_async():
+    """Enqueue a generation job and return a job id for polling."""
+    params, error = _read_json_payload()
+    if error:
+        return error
+
+    # Enqueue a wrapper that acquires the semaphore (blocks until available)
+    try:
+        job_id = enqueue_job(_run_with_semaphore, generate_topography, params, True)
     except Exception as exc:
-        return _handle_api_exception(exc, '/api/generate/heightmap')
+        return _handle_api_exception(exc, '/api/generate_async')
+
+    return jsonify({'job_id': job_id})
+
+
+@app.route('/api/job/<job_id>', methods=['GET'])
+def api_get_job(job_id: str):
+    job = get_job_status(job_id)
+    if job is None:
+        return _json_error('Job nicht gefunden', 404)
+
+    # Return the job status and result/error when finished.
+    out = {
+        'status': job.get('status'),
+        'created_at': job.get('created_at'),
+        'started_at': job.get('started_at'),
+        'finished_at': job.get('finished_at'),
+    }
+    if job.get('status') == 'finished':
+        out['result'] = job.get('result')
+        # If a persisted result file exists, expose a download URL
+        result_path = job.get('result_path') or (job.get('result') or {}).get('image_path')
+        if result_path:
+            out['download_url'] = url_for('api_download_job_result', job_id=job_id, _external=True)
+    if job.get('status') == 'failed':
+        out['error'] = job.get('error')
+    return jsonify(out)
+
+
+@app.route('/api/job/<job_id>/download', methods=['GET'])
+def api_download_job_result(job_id: str):
+    app.logger.info('api_download_job_result called for %s (method=%s)', job_id, request.method)
+
+    def _serve_path(path: Path):
+        try:
+            p = path.resolve()
+        except Exception:
+            app.logger.warning('Invalid path for job %s: %s', job_id, path)
+            return _json_error('Ungültiger Pfad', 400)
+
+        results_dir = Path(os.environ.get('TERRALINES_RESULTS_DIR', '/tmp/terralines_results')).resolve()
+        if not p.is_relative_to(results_dir):
+            app.logger.warning('Attempt to access file outside results dir: %s', p)
+            return _json_error('Zugriff verweigert', 403)
+
+        if not p.exists() or not p.is_file():
+            return _json_error('Datei nicht gefunden', 404)
+
+        return send_file(str(p), mimetype='image/png', as_attachment=True, download_name=p.name)
+
+    # 1) Check in-process job queue
+    job = get_job_status(job_id)
+    app.logger.debug('in-process job lookup returned: %s', bool(job))
+    if job:
+        if job.get('status') != 'finished':
+            return _json_error('Job noch nicht fertig', 409)
+
+        result_path = (
+            job.get('result_path')
+            or (job.get('result') or {}).get('result_path')
+            or (job.get('result') or {}).get('image_path')
+        )
+        # If we have a persisted file path, serve it
+        if result_path:
+            candidate = Path(result_path)
+            app.logger.debug('In-process job result_path: %s', candidate)
+            return _serve_path(candidate)
+
+        # If the in-process job returned an inline base64 image, decode & return
+        inline_image_b64 = (job.get('result') or {}).get('image')
+        if inline_image_b64:
+            try:
+                img_bytes = base64.b64decode(inline_image_b64)
+                buf = io.BytesIO(img_bytes)
+                buf.seek(0)
+                return send_file(buf, mimetype='image/png', as_attachment=True, download_name=f'job_{job_id}.png')
+            except Exception as exc:
+                app.logger.exception('Failed to decode inline image for job %s: %s', job_id, exc)
+                return _json_error('Ergebnis nicht verfügbar', 500)
+
+        return _json_error('Kein Ergebnis verfügbar', 404)
+
+    # 2) Fallback: direct shared file (job_<id>.png)
+    results_dir = Path(os.environ.get('TERRALINES_RESULTS_DIR', '/tmp/terralines_results'))
+    candidate = results_dir / f"job_{job_id}.png"
+    app.logger.debug('Download fallback check shared file: %s', candidate)
+    if candidate.exists():
+        return _serve_path(candidate)
+
+    # 3) Fallback: RQ/Redis job
+    if _rq_available:
+        try:
+            redis_url = os.environ.get('REDIS_URL', 'redis://redis:6379/0')
+            conn = Redis.from_url(redis_url)
+            from rq.job import Job
+            rq_job = Job.fetch(job_id, connection=conn)
+            if rq_job is None:
+                app.logger.debug('RQ job fetch returned None for %s', job_id)
+                return _json_error('Job nicht gefunden', 404)
+
+            rq_status = rq_job.get_status()
+            app.logger.debug('RQ job %s status=%s result=%s', job_id, rq_status, type(rq_job.result))
+
+            # If RQ task wrote a file path within results dir, serve it
+            rp = (rq_job.result or {}).get('result_path') if isinstance(rq_job.result, dict) else None
+            if rp:
+                candidate2 = Path(rp)
+                app.logger.debug('RQ job result_path: %s', candidate2)
+                if candidate2.exists():
+                    return _serve_path(candidate2)
+
+            # If RQ returned inline base64 image in result dict
+            inline_b64 = (rq_job.result or {}).get('image') if isinstance(rq_job.result, dict) else None
+            if inline_b64:
+                try:
+                    img_bytes = base64.b64decode(inline_b64)
+                    buf = io.BytesIO(img_bytes)
+                    buf.seek(0)
+                    return send_file(buf, mimetype='image/png', as_attachment=True, download_name=f'job_{job_id}.png')
+                except Exception:
+                    app.logger.exception('Failed to decode RQ inline image for %s', job_id)
+                    return _json_error('Ergebnis nicht verfügbar', 500)
+
+            return _json_error('Job nicht gefunden', 404)
+        except Exception as exc:
+            app.logger.exception('RQ fallback failed for job %s: %s', job_id, exc)
+            return _json_error('Job nicht gefunden', 404)
+
+    return _json_error('Job nicht gefunden', 404)
+
+
+@app.route('/api/queue_status', methods=['GET'])
+def api_queue_status():
+    """Gibt Zahlen zur in-process-Queue zurück: queued, running, finished."""
+    # job_queue is module-level singleton in job_queue.py named job_q
+    try:
+        import job_queue
+        jobs = job_queue.job_q
+    except Exception:
+        return jsonify({'error': 'Queue nicht verfügbar'}), 503
+
+    with jobs._lock:
+        counts = {'queued': jobs._tasks.qsize()}
+        running = sum(1 for j in jobs._jobs.values() if j.get('status') == 'running')
+        finished = sum(1 for j in jobs._jobs.values() if j.get('status') == 'finished')
+    counts.update({'running': running, 'finished': finished})
+    return jsonify(counts)
 
 
 @app.route('/api/presets', methods=['GET'])
@@ -319,10 +548,66 @@ def api_presets():
     return jsonify(load_templates())
 
 
+@app.route('/api/generate_rq', methods=['POST'])
+def api_generate_rq():
+    if not _rq_available:
+        return _json_error('RQ/Redis nicht konfiguriert', 503)
+    params, error = _read_json_payload()
+    if error:
+        return error
+
+    try:
+        job_id = rq_tasks.enqueue_preview(params)
+    except Exception as exc:
+        return _handle_api_exception(exc, '/api/generate_rq')
+
+    status_url = url_for('api_rq_job_status', job_id=job_id, _external=True)
+    return jsonify({'job_id': job_id, 'status_url': status_url})
+
+
+@app.route('/api/rq/job/<job_id>', methods=['GET'])
+def api_rq_job_status(job_id: str):
+    if not _rq_available:
+        return _json_error('RQ/Redis nicht konfiguriert', 503)
+    try:
+        redis_url = os.environ.get('REDIS_URL', 'redis://redis:6379/0')
+        conn = Redis.from_url(redis_url)
+        from rq.job import Job
+        job = Job.fetch(job_id, connection=conn)
+    except Exception:
+        return _json_error('Job nicht gefunden oder Redis nicht erreichbar', 404)
+
+    status = job.get_status()
+    out = {'job_id': job.id, 'status': status}
+    if status == 'finished':
+        out['result'] = job.result
+    if status == 'failed':
+        out['error'] = str(job.exc_info)
+    return jsonify(out)
+
+
 @app.route('/api/defaults', methods=['GET'])
 def api_defaults():
     """Gibt die Standard-Parameter zurück."""
     return jsonify(DEFAULT_PARAMS)
+
+
+@app.route('/results/<path:filename>', methods=['GET'])
+def serve_result_file(filename: str):
+    """Serve persisted result files from the shared results directory.
+
+    Example: /results/job_<id>.png
+    """
+    app.logger.info('serve_result_file called for %s', filename)
+    results_dir = os.environ.get('TERRALINES_RESULTS_DIR', '/tmp/terralines_results')
+    candidate = Path(results_dir) / filename
+    app.logger.debug('serve_result_file candidate=%s exists=%s', candidate, candidate.exists())
+    if not candidate.exists():
+        return _json_error('Datei nicht gefunden', 404)
+    try:
+        return send_file(str(candidate), mimetype='image/png', as_attachment=True, download_name=filename)
+    except FileNotFoundError:
+        return _json_error('Datei nicht gefunden', 404)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

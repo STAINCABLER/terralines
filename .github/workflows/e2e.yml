@@ -1,0 +1,65 @@
+name: E2E RQ Integration
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      docker:
+        image: docker:24-dind
+        options: --privileged
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build and start services via docker-compose
+        run: |
+          docker compose up -d --build
+      - name: Install CLI deps (jq, curl)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq curl
+      - name: Wait for services (web, redis)
+        run: |
+          set -e
+          # wait for web
+          for i in $(seq 1 30); do
+            if curl -sS --fail http://localhost:8000/ >/dev/null; then echo web ready && break; fi
+            echo "waiting for web... ($i)"; sleep 2
+          done
+          # wait for redis
+          for i in $(seq 1 30); do
+            if docker exec $(docker ps -qf "name=redis") sh -c "echo PING | nc -w 1 localhost 6379" >/dev/null 2>&1; then echo redis ready && break; fi
+            echo "waiting for redis... ($i)"; sleep 2
+          done
+      - name: Trigger RQ job and poll with backoff
+        run: |
+          set -euo pipefail
+          # enqueue an RQ job (assumes /api/generate_rq exists)
+          RESP=$(curl -sS -X POST -H "Content-Type: application/json" -d '{"params":{}}' http://localhost:8000/api/generate_rq)
+          JOB_ID=$(echo "$RESP" | jq -r '.job_id // empty')
+          if [ -z "$JOB_ID" ]; then echo "Failed to enqueue job: $RESP"; exit 1; fi
+          echo "Enqueued job: $JOB_ID"
+          # poll with exponential backoff (max ~5 minutes)
+          attempt=0
+          delay=1
+          while [ $attempt -lt 9 ]; do
+            STATUS=$(curl -sS http://localhost:8000/api/rq/job/${JOB_ID} | jq -r '.status // empty' || true)
+            echo "status=$STATUS (attempt=$attempt)"
+            if [ "$STATUS" = "finished" ]; then echo job finished && break; fi
+            attempt=$((attempt+1))
+            sleep $delay
+            delay=$((delay*2))
+          done
+          if [ "$STATUS" != "finished" ]; then echo "Job did not finish in time"; exit 2; fi
+      - name: Assert result download
+        run: |
+          set -e
+          curl -sS -o result.png http://localhost:8000/api/job/${JOB_ID}/download
+          if [ ! -s result.png ]; then echo "Result file empty"; exit 3; fi
+      - name: Tear down
+        run: docker compose down -v || true

@@ -1,0 +1,35 @@
+version: '3.8'
+services:
+  web:
+    build: .
+    image: terralines-ui:latest
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - TERRALINES_JOB_WORKERS=1
+      - TERRALINES_MAX_CONCURRENCY=1
+      - MPLCONFIGDIR=/tmp/matplotlib
+      - TERRALINES_RESULTS_DIR=/tmp/terralines_results
+    depends_on:
+      - redis
+    volumes:
+      - ./tmp/terralines_results:/tmp/terralines_results
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  worker:
+    build: .
+    image: terralines-worker:latest
+    command: rq worker terralines --url redis://redis:6379/0
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - PYTHONPATH=/app
+      - MPLCONFIGDIR=/tmp/matplotlib
+      - TERRALINES_RESULTS_DIR=/tmp/terralines_results
+    volumes:
+      - ./tmp/terralines_results:/tmp/terralines_results
+    depends_on:
+      - redis
