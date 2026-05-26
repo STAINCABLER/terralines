@@ -46,10 +46,10 @@ jobs:
           JOB_ID=$(echo "$RESP" | jq -r '.job_id // empty')
           if [ -z "$JOB_ID" ]; then echo "Failed to enqueue job: $RESP"; exit 1; fi
           echo "Enqueued job: $JOB_ID"
-          # poll with exponential backoff (max ~5 minutes)
+          # poll with exponential backoff (max ~10 minutes)
           attempt=0
           delay=1
-          while [ $attempt -lt 9 ]; do
+          while [ $attempt -lt 12 ]; do
             STATUS=$(curl -sS http://localhost:8000/api/rq/job/${JOB_ID} | jq -r '.status // empty' || true)
             echo "status=$STATUS (attempt=$attempt)"
             if [ "$STATUS" = "finished" ]; then echo job finished && break; fi
@@ -63,5 +63,17 @@ jobs:
           set -e
           curl -sS -o result.png http://localhost:8000/api/job/${JOB_ID}/download
           if [ ! -s result.png ]; then echo "Result file empty"; exit 3; fi
+      - name: Upload artifacts (result + logs)
+        if: always()
+        run: |
+          mkdir -p artifacts
+          if [ -f result.png ]; then mv result.png artifacts/result.png; fi
+          docker compose logs > artifacts/compose.log || true
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-artifacts
+          path: artifacts/
       - name: Tear down
         run: docker compose down -v || true
