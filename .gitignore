@@ -1,5 +1,11 @@
 __pycache__
+.ruff_cache
 tmp/
 .venv
 .env
+.coverage
 copilot-workstorage
+.vscode/copilot-workstorage
+pip-freeze-*.txt
+artifacts/
+result.png
