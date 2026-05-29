@@ -4,7 +4,7 @@ import copy
 import unittest
 
 from app import app
-from generator import DEFAULT_PARAMS
+from app.generator import DEFAULT_PARAMS
 
 
 class TerralinesAppTests(unittest.TestCase):

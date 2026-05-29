@@ -1,6 +1,6 @@
 from locust import HttpUser, task, between
 import random
-from generator import DEFAULT_PARAMS
+from app.generator import DEFAULT_PARAMS
 
 
 class GenerateUser(HttpUser):

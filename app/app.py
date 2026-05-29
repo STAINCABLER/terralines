@@ -20,6 +20,7 @@ import json
 import io
 import base64
 import os
+import tempfile
 import time
 import threading
 import logging
@@ -29,25 +30,37 @@ from pathlib import Path
 
 from flask import Flask, render_template, request, jsonify, send_file, g, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
-# Ensure matplotlib can write config cache when running in containers
-os.environ.setdefault('MPLCONFIGDIR', os.environ.get('MPLCONFIGDIR', '/tmp/matplotlib'))
+TMP_DIR = Path(tempfile.gettempdir())
+DEFAULT_RESULTS_DIR = TMP_DIR / 'terralines_results'
 
-from job_queue import enqueue as enqueue_job, get_job as get_job_status
-# RQ tasks (optional)
 try:
-    import tasks as rq_tasks
+    from .job_queue import enqueue as enqueue_job, get_job as get_job_status
+    from . import tasks as rq_tasks
+    from .generator import (
+        generate_topography,
+        generate_topography_svg,
+        load_templates,
+        DEFAULT_PARAMS,
+    )
+except ImportError:
+    from job_queue import enqueue as enqueue_job, get_job as get_job_status
+    try:
+        import tasks as rq_tasks
+        from redis import Redis
+        _rq_available = True
+    except Exception:
+        rq_tasks = None
+        _rq_available = False
+
+    from generator import (
+        generate_topography,
+        generate_topography_svg,
+        load_templates,
+        DEFAULT_PARAMS,
+    )
+else:
     from redis import Redis
     _rq_available = True
-except Exception:
-    rq_tasks = None
-    _rq_available = False
-
-from generator import (
-    generate_topography,
-    generate_topography_svg,
-    load_templates,
-    DEFAULT_PARAMS,
-)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -433,7 +446,7 @@ def api_download_job_result(job_id: str):
             app.logger.warning('Invalid path for job %s: %s', job_id, path)
             return _json_error('Ungültiger Pfad', 400)
 
-        results_dir = Path(os.environ.get('TERRALINES_RESULTS_DIR', '/tmp/terralines_results')).resolve()
+        results_dir = Path(os.environ.get('TERRALINES_RESULTS_DIR', str(DEFAULT_RESULTS_DIR))).resolve()
         if not p.is_relative_to(results_dir):
             app.logger.warning('Attempt to access file outside results dir: %s', p)
             return _json_error('Zugriff verweigert', 403)
@@ -476,7 +489,7 @@ def api_download_job_result(job_id: str):
         return _json_error('Kein Ergebnis verfügbar', 404)
 
     # 2) Fallback: direct shared file (job_<id>.png)
-    results_dir = Path(os.environ.get('TERRALINES_RESULTS_DIR', '/tmp/terralines_results'))
+    results_dir = Path(os.environ.get('TERRALINES_RESULTS_DIR', str(DEFAULT_RESULTS_DIR)))
     candidate = results_dir / f"job_{job_id}.png"
     app.logger.debug('Download fallback check shared file: %s', candidate)
     if candidate.exists():
@@ -599,7 +612,7 @@ def serve_result_file(filename: str):
     Example: /results/job_<id>.png
     """
     app.logger.info('serve_result_file called for %s', filename)
-    results_dir = os.environ.get('TERRALINES_RESULTS_DIR', '/tmp/terralines_results')
+    results_dir = os.environ.get('TERRALINES_RESULTS_DIR', str(DEFAULT_RESULTS_DIR))
     candidate = Path(results_dir) / filename
     app.logger.debug('serve_result_file candidate=%s exists=%s', candidate, candidate.exists())
     if not candidate.exists():

@@ -6,20 +6,21 @@ Workers import this module and execute jobs in a separate process.
 """
 import os
 import base64
+import tempfile
+from pathlib import Path
 from redis import Redis
 from rq import Queue
-
-# Ensure matplotlib uses Agg in worker processes and can write config
-os.environ.setdefault('MPLCONFIGDIR', os.environ.get('MPLCONFIGDIR', '/tmp/matplotlib'))
 import matplotlib
 matplotlib.use('Agg')
 
-from generator import generate_topography
+try:
+    from .generator import generate_topography
+except ImportError:
+    from generator import generate_topography
 from rq import get_current_job
-from pathlib import Path
 
 # Results directory for persisted previews
-RESULTS_DIR = Path(os.environ.get('TERRALINES_RESULTS_DIR', '/tmp/terralines_results'))
+RESULTS_DIR = Path(os.environ.get('TERRALINES_RESULTS_DIR', str(Path(tempfile.gettempdir()) / 'terralines_results')))
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 

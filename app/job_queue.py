@@ -20,6 +20,7 @@ import uuid
 import os
 import pathlib
 import base64
+import tempfile
 from typing import Callable, Dict
 
 
@@ -32,7 +33,7 @@ class JobQueue:
         self._worker_count = max(1, int(worker_count))
         self._stop = threading.Event()
         # results directory for finished jobs (files). Configurable by env.
-        self.results_dir = pathlib.Path(os.environ.get('TERRALINES_RESULTS_DIR', '/tmp/terralines_results'))
+        self.results_dir = pathlib.Path(os.environ.get('TERRALINES_RESULTS_DIR', str(pathlib.Path(tempfile.gettempdir()) / 'terralines_results')))
         self.results_dir.mkdir(parents=True, exist_ok=True)
         # Job result TTL (seconds)
         try:
