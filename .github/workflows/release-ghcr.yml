@@ -82,11 +82,11 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-      - name: Generate SBOM (Syft)
-        uses: anchore/syft-action@v2
+      - name: Generate SBOM (Anchore SBOM Action)
+        uses: anchore/sbom-action@v0
         with:
           image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-          output: sbom.json
+          output-file: sbom.json
       - name: Upload SBOM as Release asset
         if: github.event_name == 'release'
         uses: actions/upload-release-asset@v1
