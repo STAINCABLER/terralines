@@ -35,12 +35,10 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=main
-            type=raw,value=latest
             type=sha,prefix=sha-
           labels: |
             org.opencontainers.image.title=terralines
-            org.opencontainers.image.description=Terralines main-branch container build
+            org.opencontainers.image.description=Terralines main-branch container snapshot build
       - name: Build and push image
         uses: docker/build-push-action@v7
         with:
