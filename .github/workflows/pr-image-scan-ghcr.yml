@@ -1,4 +1,4 @@
-name: PR Image Scan (push to GHCR)
+name: PR Image Scan GHCR
 
 on:
   pull_request:

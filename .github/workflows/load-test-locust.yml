@@ -1,4 +1,4 @@
-name: Nightly Load Test
+name: Load Test Locust
 
 on:
   schedule:

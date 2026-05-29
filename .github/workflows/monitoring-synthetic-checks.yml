@@ -1,4 +1,4 @@
-name: Monitoring - Synthetic Checks
+name: Monitoring Synthetic Checks
 
 on:
   workflow_dispatch:

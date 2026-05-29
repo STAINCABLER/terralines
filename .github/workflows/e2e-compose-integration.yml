@@ -1,4 +1,4 @@
-name: E2E RQ Integration
+name: E2E Compose Integration
 
 on:
   workflow_dispatch:
