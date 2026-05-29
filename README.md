@@ -26,21 +26,21 @@ Windows PowerShell:
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
-python app.py
+python app/app.py
 ```
 
 If you want to start it again later, activate the venv first:
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-python app.py
+python app/app.py
 ```
 
 Alternative without activating the environment:
 
 ```powershell
 .venv\Scripts\python.exe -m pip install -r requirements.txt
-.venv\Scripts\python.exe app.py
+.venv\Scripts\python.exe app/app.py
 ```
 
 Open `http://127.0.0.1:5000`.
@@ -101,7 +101,7 @@ docker run --rm -it -p 8000:8000 -v ${PWD}:/app -v ${PWD}/tmp/terralines_results
 	python:3.12-slim-bookworm bash
 # im Container:
 pip install -r requirements.txt
-python app.py
+python app/app.py
 ```
 
 Production / CI
@@ -163,17 +163,14 @@ Supported output sizes: up to 3840x2160 px at up to 300 dpi.
 
 ```
 terralines/
-├── app.py           # Flask server, REST endpoints
+├── app/             # Flask server, UI, templates and assets
 ├── Dockerfile       # Minimal production container image
-├── generator.py     # Noise generation and rendering
 ├── .github/
 │   ├── dependabot.yml
 │   └── workflows/   # Nightly, release, functionality and security workflows
 ├── tests/           # Unit and security regression tests
-├── static/          # Stylesheet and favicon
-├── templates/       # Server-side presets
 ├── requirements.txt
-└── index.html       # Frontend (Material You dark theme)
+└── index.html       # Legacy top-level copy of the frontend
 ```
 
 ## License

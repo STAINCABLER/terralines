@@ -1,0 +1,21 @@
+{
+  "name": "Cyberpunk",
+  "chip_color": "#00d4b4",
+  "params": {
+    "bg_color": "#001a14",
+    "line_color": "#0d3a30",
+    "highlight_color": "#00d4b4",
+    "highlight_every": 5,
+    "line_width": 0.6,
+    "highlight_width": 1.1,
+    "scale": 280,
+    "levels": 12,
+    "smoothing": 1.3,
+    "show_grid": true,
+    "grid_style": "cross",
+    "grid_color": "#e8e0c8",
+    "grid_alpha": 0.35,
+    "line_style": "solid",
+    "dash_every": 3
+  }
+}

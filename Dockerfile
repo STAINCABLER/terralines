@@ -18,9 +18,9 @@ RUN python -m pip install --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
 # Copy application sources into builder (so we can copy into runtime later)
-COPY app.py generator.py job_queue.py worker.py tasks.py index.html ./
-COPY static ./static
-COPY templates ./templates
+COPY ./app/app.py ./app/generator.py ./app/job_queue.py ./app/worker.py ./app/tasks.py ./app/index.html ./
+COPY ./app/static ./static
+COPY ./app/templates ./templates
 
 
 FROM python:3.12-slim-bookworm AS runtime

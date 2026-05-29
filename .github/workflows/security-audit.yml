@@ -43,7 +43,7 @@ jobs:
         run: pip-audit -r requirements.txt
 
       - name: Run static security scan
-        run: bandit -r app.py generator.py -ll
+        run: bandit -r app -ll
 
       - name: Run security regression tests
         run: python -m unittest discover -s tests -v
