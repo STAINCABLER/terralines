@@ -9,3 +9,4 @@ copilot-workstorage
 pip-freeze-*.txt
 artifacts/
 result.png
+*.log
