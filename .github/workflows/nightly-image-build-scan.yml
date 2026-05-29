@@ -32,12 +32,12 @@ jobs:
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/terralines:nightly-${{ github.run_id }}
       - name: Generate SBOM (Syft)
-          uses: anchore/sbom-action@v0
-          with:
-            image: ghcr.io/${{ github.repository_owner }}/terralines:nightly-${{ github.run_id }}
-            output-file: sbom.json
+        uses: anchore/sbom-action@v0
+        with:
+          image: ghcr.io/${{ github.repository_owner }}/terralines:nightly-${{ github.run_id }}
+          output-file: sbom_nightly.json
       - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@v1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ghcr.io/${{ github.repository_owner }}/terralines:nightly-${{ github.run_id }}
           format: json
