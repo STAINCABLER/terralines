@@ -9,6 +9,11 @@ WORKDIR /app
 
 ENV MPLCONFIGDIR=/tmp/matplotlib
 
+# Refresh Debian packages in the build stage so the runtime image inherits current security fixes.
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/*
+
 # Create an isolated venv and install dependencies in the builder image
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
@@ -33,6 +38,11 @@ ENV MPLCONFIGDIR=/tmp/matplotlib
 ENV TERRALINES_RESULTS_DIR=/tmp/terralines_results
 ENV HOST=0.0.0.0 \
     PORT=8000
+
+# Refresh Debian packages in the runtime stage to reduce base-image CVEs.
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
 RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin appuser
