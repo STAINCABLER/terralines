@@ -4,4 +4,3 @@ pytest-cov==4.1.0
 pre-commit==3.4.0
 pip-audit==2.3.0
 bandit==1.8.1
-trivy==0.34.3
