@@ -12,7 +12,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/terralines
+  IMAGE_NAME: ${{ github.repository_owner }}/ltm_ptb_terralines
 
 jobs:
   build-and-push:

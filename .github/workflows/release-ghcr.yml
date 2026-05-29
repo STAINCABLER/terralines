@@ -12,7 +12,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/terralines
+  IMAGE_NAME: ${{ github.repository_owner }}/ltm_ptb_terralines
   # Use commit SHA here; release tag handling is delegated to metadata-action tags
   IMAGE_TAG: ${{ github.sha }}
 

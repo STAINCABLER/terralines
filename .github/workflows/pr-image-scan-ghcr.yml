@@ -29,11 +29,11 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/terralines:pr-${{ github.event.pull_request.number }}-${{ github.sha }}
+          tags: ghcr.io/${{ github.repository_owner }}/ltm_ptb_terralines:pr-${{ github.event.pull_request.number }}-${{ github.sha }}
       - name: Scan image with Trivy (fail on HIGH/CRITICAL)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ghcr.io/${{ github.repository_owner }}/terralines:pr-${{ github.event.pull_request.number }}-${{ github.sha }}
+          image-ref: ghcr.io/${{ github.repository_owner }}/ltm_ptb_terralines:pr-${{ github.event.pull_request.number }}-${{ github.sha }}
           format: json
           output: trivy_pr_report.json
           exit-code: '1'
