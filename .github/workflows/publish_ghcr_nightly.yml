@@ -15,11 +15,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
       - name: Login to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -31,11 +31,11 @@ jobs:
           file: ./Dockerfile
           push: false
           load: true
-          tags: ghcr.io/${{ github.repository_owner }}/ltm_ptb_terralines:nightly-${{ github.run_id }}
+          tags: ghcr.io/staincabler/ltm_ptb_terralines:nightly-${{ github.run_id }}
       - name: Container health check
         uses: ./.github/actions/container-health-check
         with:
-          image: ghcr.io/${{ github.repository_owner }}/ltm_ptb_terralines:nightly-${{ github.run_id }}
+          image: ghcr.io/staincabler/ltm_ptb_terralines:nightly-${{ github.run_id }}
           container_name: terralines-nightly-${{ github.run_id }}
           port: '8000'
           retries: '30'
@@ -46,21 +46,22 @@ jobs:
         with:
           name: health-check-log
           path: health_container.log
+          if-no-files-found: ignore
       - name: Generate SBOM (Syft)
         uses: anchore/sbom-action@v0
         with:
-          image: ghcr.io/${{ github.repository_owner }}/ltm_ptb_terralines:nightly-${{ github.run_id }}
+          image: ghcr.io/staincabler/ltm_ptb_terralines:nightly-${{ github.run_id }}
           output-file: sbom_nightly.json
       - name: Scan image with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ghcr.io/${{ github.repository_owner }}/ltm_ptb_terralines:nightly-${{ github.run_id }}
+          image-ref: ghcr.io/staincabler/ltm_ptb_terralines:nightly-${{ github.run_id }}
           format: json
           output: trivy_nightly_report.json
           exit-code: '1'
           severity: 'CRITICAL,HIGH'
       - name: Push nightly image to GHCR
-        run: docker push ghcr.io/${{ github.repository_owner }}/ltm_ptb_terralines:nightly-${{ github.run_id }}
+        run: docker push ghcr.io/staincabler/ltm_ptb_terralines:nightly-${{ github.run_id }}
       - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v7

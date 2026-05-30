@@ -99,5 +99,6 @@ jobs:
         with:
           name: e2e-artifacts
           path: artifacts/
+          if-no-files-found: ignore
       - name: Tear down
         run: docker compose down -v || true

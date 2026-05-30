@@ -81,3 +81,4 @@ jobs:
         with:
           name: ghcr-cleanup-dryrun
           path: ghcr_cleanup_dryrun.json
+          if-no-files-found: ignore
