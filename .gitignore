@@ -1,5 +1,7 @@
 __pycache__
 .ruff_cache
+ci-artifacts/
+ci-logs/
 tmp/
 .venv
 .env
