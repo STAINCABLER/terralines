@@ -51,6 +51,24 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Run container health checks
+        run: |
+          IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          CONTAINER=terralines-main-${{ github.run_id }}
+          docker run -d --name $CONTAINER -p 8000:8000 $IMAGE
+          healthy=false
+          for i in $(seq 1 30); do
+            if curl -fS --max-time 2 http://127.0.0.1:8000/health >/dev/null 2>&1 || curl -fS --max-time 2 http://127.0.0.1:8000/ >/dev/null 2>&1; then
+              healthy=true; break
+            fi
+            sleep 2
+          done
+          docker logs $CONTAINER > health_container.log || true
+          docker stop $CONTAINER || true
+          docker rm $CONTAINER || true
+          if [ "$healthy" != "true" ]; then
+            echo "Health check failed"; cat health_container.log || true; exit 1
+          fi
       - name: Generate SBOM (Anchore SBOM Action)
         uses: anchore/sbom-action@v0
         with:
