@@ -1,0 +1,65 @@
+name: Container Health Check
+description: Starts the built image as a container and probes /health or / until healthy or timeout.
+author: GitHub Copilot
+
+inputs:
+  image:
+    description: 'Image reference to run (required)'
+    required: true
+  container_name:
+    description: 'Optional container name (defaults to container-health-<run_id>)'
+    required: false
+    default: ''
+  port:
+    description: 'Port to map and probe'
+    required: false
+    default: '8000'
+  retries:
+    description: 'Number of probe attempts'
+    required: false
+    default: '30'
+  interval:
+    description: 'Seconds to wait between attempts'
+    required: false
+    default: '2'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Ensure prerequisites
+      run: |
+        set -euo pipefail
+        if ! command -v docker >/dev/null 2>&1; then echo "docker not available on runner"; exit 2; fi
+
+    - name: Run container and probe
+      shell: bash
+      run: |
+        set -euo pipefail
+        IMAGE="${{ inputs.image }}"
+        CONTAINER="${{ inputs.container_name }}"
+        PORT="${{ inputs.port }}"
+        RETRIES=${{ inputs.retries }}
+        INTERVAL=${{ inputs.interval }}
+        if [ -z "$CONTAINER" ]; then
+          CONTAINER="container-health-${GITHUB_RUN_ID}"
+        fi
+        echo "Starting container $CONTAINER from image $IMAGE"
+        docker run -d --name "$CONTAINER" -p "$PORT:$PORT" "$IMAGE"
+        healthy=false
+        for i in $(seq 1 "$RETRIES"); do
+          if curl -fS --max-time $((INTERVAL+1)) "http://127.0.0.1:$PORT/health" >/dev/null 2>&1 || curl -fS --max-time $((INTERVAL+1)) "http://127.0.0.1:$PORT/" >/dev/null 2>&1; then
+            echo "Container responded; healthy"
+            healthy=true
+            break
+          fi
+          echo "Waiting for container ($i/$RETRIES)"
+          sleep "$INTERVAL"
+        done
+        echo "Collecting container logs to health_container.log"
+        docker logs "$CONTAINER" > health_container.log || true
+        docker stop "$CONTAINER" || true
+        docker rm "$CONTAINER" || true
+        if [ "$healthy" != "true" ]; then
+          echo "Health check failed, dumping logs:"; cat health_container.log || true
+          exit 1
+        fi

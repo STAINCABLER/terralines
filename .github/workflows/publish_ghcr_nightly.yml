@@ -32,24 +32,14 @@ jobs:
           push: false
           load: true
           tags: ghcr.io/${{ github.repository_owner }}/ltm_ptb_terralines:nightly-${{ github.run_id }}
-      - name: Run container health checks
-        run: |
-          IMAGE=ghcr.io/${{ github.repository_owner }}/ltm_ptb_terralines:nightly-${{ github.run_id }}
-          CONTAINER=terralines-nightly-${{ github.run_id }}
-          docker run -d --name $CONTAINER -p 8000:8000 $IMAGE
-          healthy=false
-          for i in $(seq 1 30); do
-            if curl -fS --max-time 2 http://127.0.0.1:8000/health >/dev/null 2>&1 || curl -fS --max-time 2 http://127.0.0.1:8000/ >/dev/null 2>&1; then
-              healthy=true; break
-            fi
-            sleep 2
-          done
-          docker logs $CONTAINER > health_container.log || true
-          docker stop $CONTAINER || true
-          docker rm $CONTAINER || true
-          if [ "$healthy" != "true" ]; then
-            echo "Health check failed"; cat health_container.log || true; exit 1
-          fi
+      - name: Container health check
+        uses: ./.github/actions/container-health-check
+        with:
+          image: ghcr.io/${{ github.repository_owner }}/ltm_ptb_terralines:nightly-${{ github.run_id }}
+          container_name: terralines-nightly-${{ github.run_id }}
+          port: '8000'
+          retries: '30'
+          interval: '2'
       - name: Generate SBOM (Syft)
         uses: anchore/sbom-action@v0
         with:
