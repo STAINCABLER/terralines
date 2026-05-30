@@ -40,6 +40,12 @@ jobs:
           port: '8000'
           retries: '30'
           interval: '2'
+      - name: Upload health check logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: health-check-log
+          path: health_container.log
       - name: Generate SBOM (Syft)
         uses: anchore/sbom-action@v0
         with:
