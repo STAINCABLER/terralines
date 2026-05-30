@@ -16,6 +16,10 @@ jobs:
       - uses: actions/checkout@v6
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+      - name: Prepare shared results directory
+        run: |
+          mkdir -p tmp/terralines_results
+          chmod 777 tmp/terralines_results
       - name: Pull images and start services via docker-compose
         run: |
           # Pull images from registry (don't build in CI E2E)
@@ -39,6 +43,7 @@ jobs:
             echo "waiting for redis... ($i)"; sleep 2
           done
       - name: Trigger RQ job and poll with backoff
+        id: rq_job
         run: |
           set -euo pipefail
           # enqueue an RQ job (assumes /api/generate_rq exists)
@@ -50,6 +55,7 @@ jobs:
           JOB_ID=$(echo "$RESP" | jq -r '.job_id // empty')
           if [ -z "$JOB_ID" ]; then echo "Failed to enqueue job: $RESP"; exit 1; fi
           echo "Enqueued job: $JOB_ID"
+          echo "job_id=$JOB_ID" >> "$GITHUB_OUTPUT"
 
           # poll with exponential backoff (max ~10 minutes)
           attempt=0
@@ -74,7 +80,7 @@ jobs:
       - name: Assert result download
         run: |
           set -e
-          curl -sS -o result.png http://localhost:8000/api/job/${JOB_ID}/download
+          curl -sS -o result.png http://localhost:8000/api/job/${{ steps.rq_job.outputs.job_id }}/download
           if [ ! -s result.png ]; then echo "Result file empty"; exit 3; fi
       - name: Upload artifacts (result + logs)
         if: always()
@@ -84,9 +90,9 @@ jobs:
           docker compose logs > artifacts/compose.log || true
           # collect individual container logs for better diagnostics
           docker ps --format '{{.Names}}' > artifacts/containers.txt || true
-          if docker ps -qf "name=terralines-worker" >/dev/null 2>&1; then docker logs $(docker ps -qf "name=terralines-worker") > artifacts/worker.log || true; fi || true
-          if docker ps -qf "name=redis" >/dev/null 2>&1; then docker logs $(docker ps -qf "name=redis") > artifacts/redis.log || true; fi || true
-          if docker ps -qf "name=terralines-ui" >/dev/null 2>&1; then docker logs $(docker ps -qf "name=terralines-ui") > artifacts/web.log || true; fi || true
+          docker compose logs web > artifacts/web.log || true
+          docker compose logs worker > artifacts/worker.log || true
+          docker compose logs redis > artifacts/redis.log || true
       - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
