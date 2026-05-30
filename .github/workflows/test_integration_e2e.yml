@@ -42,22 +42,35 @@ jobs:
         run: |
           set -euo pipefail
           # enqueue an RQ job (assumes /api/generate_rq exists)
-          RESP=$(curl -sS -X POST -H "Content-Type: application/json" -d '{"params":{}}' http://localhost:8000/api/generate_rq)
+          # Use small params to keep generation fast in CI
+          PAYLOAD='{"params":{"width":320,"height":180,"preview_scale":0.5}}'
+          echo "Enqueue payload: $PAYLOAD"
+          RESP=$(curl -sS -X POST -H "Content-Type: application/json" -d "$PAYLOAD" http://localhost:8000/api/generate_rq)
+          echo "Enqueue response: $RESP"
           JOB_ID=$(echo "$RESP" | jq -r '.job_id // empty')
           if [ -z "$JOB_ID" ]; then echo "Failed to enqueue job: $RESP"; exit 1; fi
           echo "Enqueued job: $JOB_ID"
+
           # poll with exponential backoff (max ~10 minutes)
           attempt=0
           delay=1
+          STATUS=""
           while [ $attempt -lt 12 ]; do
-            STATUS=$(curl -sS http://localhost:8000/api/rq/job/${JOB_ID} | jq -r '.status // empty' || true)
+            FULL=$(curl -sS http://localhost:8000/api/rq/job/${JOB_ID} || true)
+            echo "job status response: $FULL"
+            STATUS=$(echo "$FULL" | jq -r '.status // empty' || true)
             echo "status=$STATUS (attempt=$attempt)"
             if [ "$STATUS" = "finished" ]; then echo job finished && break; fi
+            if [ "$STATUS" = "failed" ]; then
+              ERR=$(echo "$FULL" | jq -r '.error // empty' || true)
+              echo "Job failed with error: $ERR"
+              exit 2
+            fi
             attempt=$((attempt+1))
             sleep $delay
             delay=$((delay*2))
           done
-          if [ "$STATUS" != "finished" ]; then echo "Job did not finish in time"; exit 2; fi
+          if [ "$STATUS" != "finished" ]; then echo "Job did not finish in time (last status=$STATUS)"; exit 3; fi
       - name: Assert result download
         run: |
           set -e
@@ -69,6 +82,11 @@ jobs:
           mkdir -p artifacts
           if [ -f result.png ]; then mv result.png artifacts/result.png; fi
           docker compose logs > artifacts/compose.log || true
+          # collect individual container logs for better diagnostics
+          docker ps --format '{{.Names}}' > artifacts/containers.txt || true
+          if docker ps -qf "name=terralines-worker" >/dev/null 2>&1; then docker logs $(docker ps -qf "name=terralines-worker") > artifacts/worker.log || true; fi || true
+          if docker ps -qf "name=redis" >/dev/null 2>&1; then docker logs $(docker ps -qf "name=redis") > artifacts/redis.log || true; fi || true
+          if docker ps -qf "name=terralines-ui" >/dev/null 2>&1; then docker logs $(docker ps -qf "name=terralines-ui") > artifacts/web.log || true; fi || true
       - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
