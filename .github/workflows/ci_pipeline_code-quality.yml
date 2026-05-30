@@ -47,7 +47,7 @@ jobs:
           pip-audit -r requirements.txt --format=json -o pip_audit.json || true
       - name: Upload pip-audit report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pip-audit
           path: pip_audit.json
@@ -76,7 +76,7 @@ jobs:
         run: |
           pytest --maxfail=1 --disable-warnings --cov=. --cov-report=xml
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: coverage.xml
@@ -92,7 +92,7 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
       - name: Cache Docker layers
         uses: actions/cache@v4
         with:
@@ -114,7 +114,7 @@ jobs:
           image: ltm_ptb_terralines:ci
           output-file: sbom.json
       - name: Upload SBOM
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sbom
           path: sbom.json
@@ -127,7 +127,7 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
       - name: Build image for Trivy scan
         uses: docker/build-push-action@v7
         with:
