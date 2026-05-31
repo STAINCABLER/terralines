@@ -1,4 +1,7 @@
-FROM python:3.12-slim-bookworm AS builder
+#
+# BUILDER IMAGE
+#
+FROM python:3.12-slim-trixie AS terralines-builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -11,10 +14,10 @@ ENV MPLCONFIGDIR=/tmp/matplotlib
 
 # Refresh Debian packages in the build stage so the runtime image inherits current security fixes.
 RUN apt-get update \
-    && apt-get upgrade -y \
+    && apt-get -y full-upgrade \
     && rm -rf /var/lib/apt/lists/*
 
-# Create an isolated venv and install dependencies in the builder image
+# Create an isolated venv and install dependencies in the builder image.
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
@@ -22,13 +25,20 @@ COPY requirements.txt ./
 RUN python -m pip install --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
-# Copy application sources into builder (so we can copy into runtime later)
+# Copy application sources into builder, then precompile them and drop the
+# source files so the runtime image only receives bytecode plus static assets.
 COPY ./app/app.py ./app/generator.py ./app/job_queue.py ./app/worker.py ./app/tasks.py ./app/index.html ./
 COPY ./app/static ./static
 COPY ./app/templates ./templates
+RUN python -m compileall -q -b /app \
+    && find /app -type f -name '*.py' -delete
 
 
-FROM python:3.12-slim-bookworm AS runtime
+#
+# RUNTIME IMAGE
+#
+# Hardened runtime switch: move runtime to the newer Debian trixie variant.
+FROM python:3.12-slim-trixie AS terralines-runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -41,18 +51,18 @@ ENV HOST=0.0.0.0 \
 
 # Refresh Debian packages in the runtime stage to reduce base-image CVEs.
 RUN apt-get update \
-    && apt-get upgrade -y \
+    && apt-get -y full-upgrade \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
 RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin appuser
 
 # Copy venv from builder
-COPY --from=builder /opt/venv /opt/venv
+COPY --from=terralines-builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy app sources and static files
-COPY --from=builder /app /app
+# Copy only the compiled runtime artefacts and static files.
+COPY --from=terralines-builder /app /app
 WORKDIR /app
 
 # Create results dir with correct ownership

@@ -41,13 +41,18 @@ jobs:
               isOrg = false;
             }
             for (const packageName of packageNames) {
-              let resp;
+              let versions = [];
               if (isOrg) {
-                resp = await github.rest.packages.listPackageVersionsForPackageOwnedByOrg({ org: owner, package_type: 'container', package_name: packageName, per_page: 100 });
+                const resp = await github.rest.packages.listPackageVersionsForPackageOwnedByOrg({ org: owner, package_type: 'container', package_name: packageName, per_page: 100 });
+                versions = resp.data || [];
               } else {
-                resp = await github.rest.packages.listPackageVersionsForPackageOwnedByUser({ username: owner, package_type: 'container', package_name: packageName, per_page: 100 });
+                const resp = await github.request('GET /users/{username}/packages/container/{package_name}/versions', {
+                  username: owner,
+                  package_name: packageName,
+                  per_page: 100
+                });
+                versions = resp.data || [];
               }
-              const versions = resp.data || [];
               for (const v of versions) {
                 const created = new Date(v.created_at);
                 const tags = (v.metadata && v.metadata.container && v.metadata.container.tags) || [];
@@ -59,7 +64,11 @@ jobs:
                     if (isOrg) {
                       await github.rest.packages.deletePackageVersionForOrg({ org: owner, package_type: 'container', package_name: packageName, package_version_id: v.id });
                     } else {
-                      await github.rest.packages.deletePackageVersionForUser({ username: owner, package_type: 'container', package_name: packageName, package_version_id: v.id });
+                      await github.request('DELETE /users/{username}/packages/container/{package_name}/versions/{package_version_id}', {
+                        username: owner,
+                        package_name: packageName,
+                        package_version_id: v.id
+                      });
                     }
                     deleted.push(item);
                   }

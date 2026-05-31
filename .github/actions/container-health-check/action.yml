@@ -27,6 +27,7 @@ runs:
   using: 'composite'
   steps:
     - name: Ensure prerequisites
+      shell: bash
       run: |
         set -euo pipefail
         if ! command -v docker >/dev/null 2>&1; then echo "docker not available on runner"; exit 2; fi
