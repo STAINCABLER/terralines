@@ -61,6 +61,19 @@ docker run --rm -p 8000:8000 ltm_ptb_terralines:local
 
 Open `http://127.0.0.1:8000`.
 
+## Bekannte Sicherheitsschwachstellen
+
+Die folgenden Findings sind aktuell als Ausnahme dokumentiert, weil sie sich nur durch ein Base-Image update beheben lassen. Sie sind in `.trivyignore` hinterlegt, damit Trivy die CI/CD-Pipeline nicht blockiert. Stand des Eintrags: 2026-06-02.
+
+| CVE | Betroffene Pakete | Problem | Hinzugefügt am | Voraussichtlich reparierbar |
+|---|---|---|---|---|
+| CVE-2025-69720 | libncursesw6, libtinfo6, ncurses-base, ncurses-bin | ncurses Buffer Overflow, potenziell Codeausführung | 2026-06-02 | 2026-06-30, sobald ein weiterer Base-Image-Refresh ein gepatchtes ncurses-Paket enthält |
+| CVE-2026-42496 | perl-base | Archive::Tar kann Symlinks beim Entpacken unsicher verarbeiten | 2026-06-02 | 2026-06-30, sobald ein neueres Python/Debian-Base-Image das Fix-Paket enthält |
+| CVE-2026-42497 | perl-base | Archive::Tar kann Hardlinks unsicher verarbeiten | 2026-06-02 | 2026-06-30, sobald ein neueres Python/Debian-Base-Image das Fix-Paket enthält |
+| CVE-2026-48962 | perl-base | perl-IO-Compress kann unter attacker-controlled output zu Codeausführung führen | 2026-06-02 | 2026-06-30, sobald ein neueres Python/Debian-Base-Image das Fix-Paket enthält |
+| CVE-2026-8376 | perl-base | Perl-Heap-Overflow beim Kompilieren | 2026-06-02 | 2026-06-30, sobald ein neueres Python/Debian-Base-Image das Fix-Paket enthält |
+| CVE-2026-9538 | perl-base | Archive::Tar kann Speicher erschöpfen | 2026-06-02 | 2026-06-30, sobald ein neueres Python/Debian-Base-Image das Fix-Paket enthält |
+
 ## Containerbetrieb (Docker Compose)
 
 Kurzanleitung — lokal (Produktionsnah):

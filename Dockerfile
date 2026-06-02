@@ -1,7 +1,7 @@
 #
 # BUILDER IMAGE
 #
-FROM python:3.12-slim-trixie AS terralines-builder
+FROM python:3.13-slim-trixie AS terralines-builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -38,7 +38,7 @@ RUN python -m compileall -q -b /app \
 # RUNTIME IMAGE
 #
 # Hardened runtime switch: move runtime to the newer Debian trixie variant.
-FROM python:3.12-slim-trixie AS terralines-runtime
+FROM python:3.13-slim-trixie AS terralines-runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1

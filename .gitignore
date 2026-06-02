@@ -6,6 +6,7 @@ tmp/
 .venv
 .env
 .coverage
+.pytest_cache/
 copilot-workstorage
 .vscode/copilot-workstorage
 pip-freeze-*.txt
