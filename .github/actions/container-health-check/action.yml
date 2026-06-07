@@ -1,5 +1,5 @@
 name: Container Health Check
-description: Starts the built image as a container and probes /health or / until healthy or timeout.
+description: Starts the built image as a container and probes /health until healthy or timeout.
 author: GitHub Copilot
 
 inputs:
@@ -48,7 +48,8 @@ runs:
         docker run -d --name "$CONTAINER" -p "$PORT:$PORT" "$IMAGE"
         healthy=false
         for i in $(seq 1 "$RETRIES"); do
-          if curl -fS --max-time $((INTERVAL+1)) "http://127.0.0.1:$PORT/health" >/dev/null 2>&1 || curl -fS --max-time $((INTERVAL+1)) "http://127.0.0.1:$PORT/" >/dev/null 2>&1; then
+          BODY=$(curl -sS --max-time $((INTERVAL+1)) "http://127.0.0.1:$PORT/health" || true)
+          if echo "$BODY" | grep -q '"status"[[:space:]]*:[[:space:]]*"ok"'; then
             echo "Container responded; healthy"
             healthy=true
             break

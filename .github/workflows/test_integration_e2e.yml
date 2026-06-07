@@ -1,98 +1,143 @@
 name: E2E Compose Integration
 
-on:
-  workflow_dispatch:
+"on":
+  workflow_dispatch: {}
   push:
-    branches: [ main ]
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    services:
-      docker:
-        image: docker:24-dind
-        options: --privileged
     steps:
       - uses: actions/checkout@v6
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
+
       - name: Prepare shared results directory
         run: |
           mkdir -p tmp/terralines_results
           chmod 777 tmp/terralines_results
-      - name: Pull images and start services via docker-compose
+
+      - name: Build and start services via docker compose
         run: |
-          # Pull images from registry (don't build in CI E2E)
-          docker compose pull || true
-          docker compose up -d
+          docker compose up -d --build
+
       - name: Install CLI deps (jq, curl)
         run: |
           sudo apt-get update
           sudo apt-get install -y jq curl
-      - name: Wait for services (web, redis)
+
+      - name: Wait for services (web, redis, workers)
         run: |
-          set -e
-          # wait for web
+          set -euo pipefail
+
           for i in $(seq 1 30); do
-            if curl -sS --fail http://localhost:8000/ >/dev/null; then echo web ready && break; fi
-            echo "waiting for web... ($i)"; sleep 2
+            BODY=$(curl -sS --max-time 3 http://localhost:8000/health || true)
+            if echo "$BODY" | jq -e '.status == "ok" and (.worker_mode == false)' >/dev/null 2>&1; then
+              echo "web healthy"
+              break
+            fi
+            echo "waiting for web... ($i)"
+            sleep 2
+            if [ "$i" -eq 30 ]; then
+              echo "web health endpoint did not become ready"
+              exit 10
+            fi
           done
-          # wait for redis
+
           for i in $(seq 1 30); do
-            if docker exec $(docker ps -qf "name=redis") sh -c "echo PING | nc -w 1 localhost 6379" >/dev/null 2>&1; then echo redis ready && break; fi
-            echo "waiting for redis... ($i)"; sleep 2
+            if [ "$(docker compose exec -T redis redis-cli ping 2>/dev/null || true)" = "PONG" ]; then
+              echo "redis ready"
+              break
+            fi
+            echo "waiting for redis... ($i)"
+            sleep 2
+            if [ "$i" -eq 30 ]; then
+              echo "redis did not become ready"
+              exit 11
+            fi
           done
+
+          docker compose ps
+          for service in worker1 worker2; do
+            docker compose exec -T "$service" sh -lc "tr '\\0' ' ' < /proc/1/cmdline | grep -q 'rq worker terralines'"
+          done
+
       - name: Trigger RQ job and poll with backoff
         id: rq_job
         run: |
           set -euo pipefail
-          # enqueue an RQ job (assumes /api/generate_rq exists)
-          # Use small params to keep generation fast in CI
-          PAYLOAD='{"params":{"width":320,"height":180,"preview_scale":0.5}}'
+          PAYLOAD='{"width":320,"height":180,"preview_scale":0.5,"octaves":1,"levels":2,"smoothing":0.0,"seed":42}'
           echo "Enqueue payload: $PAYLOAD"
           RESP=$(curl -sS -X POST -H "Content-Type: application/json" -d "$PAYLOAD" http://localhost:8000/api/generate_rq)
           echo "Enqueue response: $RESP"
           JOB_ID=$(echo "$RESP" | jq -r '.job_id // empty')
-          if [ -z "$JOB_ID" ]; then echo "Failed to enqueue job: $RESP"; exit 1; fi
+          if [ -z "$JOB_ID" ]; then
+            echo "Failed to enqueue job: $RESP"
+            exit 1
+          fi
+
           echo "Enqueued job: $JOB_ID"
           echo "job_id=$JOB_ID" >> "$GITHUB_OUTPUT"
 
-          # poll with exponential backoff (max ~10 minutes)
           attempt=0
           delay=1
           STATUS=""
           while [ $attempt -lt 12 ]; do
-            FULL=$(curl -sS http://localhost:8000/api/rq/job/${JOB_ID} || true)
+            FULL=$(curl -sS "http://localhost:8000/api/rq/job/${JOB_ID}" || true)
             echo "job status response: $FULL"
             STATUS=$(echo "$FULL" | jq -r '.status // empty' || true)
             echo "status=$STATUS (attempt=$attempt)"
-            if [ "$STATUS" = "finished" ]; then echo job finished && break; fi
+            if [ "$STATUS" = "finished" ]; then
+              echo "job finished"
+              break
+            fi
             if [ "$STATUS" = "failed" ]; then
               ERR=$(echo "$FULL" | jq -r '.error // empty' || true)
               echo "Job failed with error: $ERR"
               exit 2
             fi
-            attempt=$((attempt+1))
+            attempt=$((attempt + 1))
             sleep $delay
-            delay=$((delay*2))
+            delay=$((delay * 2))
           done
-          if [ "$STATUS" != "finished" ]; then echo "Job did not finish in time (last status=$STATUS)"; exit 3; fi
+
+          if [ "$STATUS" != "finished" ]; then
+            echo "Job did not finish in time (last status=$STATUS)"
+            exit 3
+          fi
+
       - name: Assert result download
         run: |
-          set -e
-          curl -sS -o result.png http://localhost:8000/api/job/${{ steps.rq_job.outputs.job_id }}/download
-          if [ ! -s result.png ]; then echo "Result file empty"; exit 3; fi
+          set -euo pipefail
+          curl -sS --fail -o result.png "http://localhost:8000/api/job/${{ steps.rq_job.outputs.job_id }}/download"
+          if [ ! -s result.png ]; then
+            echo "Result file empty"
+            exit 3
+          fi
+
+          QUEUE_DEPTH=$(docker compose exec -T redis redis-cli LLEN rq:queue:terralines | tr -d '\r' || true)
+          echo "queue depth after run: ${QUEUE_DEPTH:-unknown}"
+
       - name: Upload artifacts (result + logs)
         if: always()
         run: |
           mkdir -p artifacts
-          if [ -f result.png ]; then mv result.png artifacts/result.png; fi
+          if [ -f result.png ]; then
+            mv result.png artifacts/result.png
+          fi
           docker compose logs > artifacts/compose.log || true
-          # collect individual container logs for better diagnostics
           docker ps --format '{{.Names}}' > artifacts/containers.txt || true
           docker compose logs web > artifacts/web.log || true
-          docker compose logs worker > artifacts/worker.log || true
+          docker compose logs worker1 > artifacts/worker1.log || true
+          docker compose logs worker2 > artifacts/worker2.log || true
           docker compose logs redis > artifacts/redis.log || true
+
       - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v7
@@ -100,5 +145,7 @@ jobs:
           name: e2e-artifacts
           path: artifacts/
           if-no-files-found: ignore
+
       - name: Tear down
+        if: always()
         run: docker compose down -v || true

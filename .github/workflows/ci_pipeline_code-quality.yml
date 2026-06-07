@@ -75,7 +75,7 @@ jobs:
           PY
       - name: Run tests with coverage
         run: |
-          pytest --maxfail=1 --disable-warnings --cov=. --cov-report=xml
+          python -m pytest --maxfail=1 --disable-warnings --cov=app --cov-report=xml --cov-report=term-missing --cov-fail-under=70
       - name: Upload coverage report
         uses: actions/upload-artifact@v7
         with:

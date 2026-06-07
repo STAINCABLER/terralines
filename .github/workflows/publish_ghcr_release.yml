@@ -122,8 +122,17 @@ jobs:
           asset_content_type: application/json
       - name: Install cosign
         uses: sigstore/cosign-installer@v2
+      - name: Attest SBOM with cosign
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cosign attest --keyless --predicate sbom.json --type cyclonedx ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
       - name: Sign image with cosign (keyless)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cosign sign --keyless ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+      - name: Verify image signature and SBOM attestation
+        run: |
+          cosign verify --certificate-identity-regexp 'https://github\.com/.+' --certificate-oidc-issuer-regexp 'https://token\.actions\.githubusercontent\.com' ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          cosign verify-attestation --type cyclonedx --certificate-identity-regexp 'https://github\.com/.+' --certificate-oidc-issuer-regexp 'https://token\.actions\.githubusercontent\.com' ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}

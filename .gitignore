@@ -8,7 +8,8 @@ tmp/
 .coverage
 .pytest_cache/
 copilot-workstorage
-.vscode/copilot-workstorage
+.vscode/*
+.idea/
 pip-freeze-*.txt
 artifacts/
 result.png

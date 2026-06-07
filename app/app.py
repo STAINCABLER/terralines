@@ -34,6 +34,7 @@ TMP_DIR = Path(tempfile.gettempdir())
 DEFAULT_RESULTS_DIR = TMP_DIR / 'terralines_results'
 
 try:
+    from . import job_queue as inproc_job_queue
     from .job_queue import enqueue as enqueue_job, get_job as get_job_status
     from . import tasks as rq_tasks
     from .generator import (
@@ -43,7 +44,18 @@ try:
         DEFAULT_PARAMS,
     )
 except ImportError:
-    from job_queue import enqueue as enqueue_job, get_job as get_job_status
+    try:
+        import job_queue as inproc_job_queue
+        from job_queue import enqueue as enqueue_job, get_job as get_job_status
+    except Exception:
+        inproc_job_queue = None
+
+        def enqueue_job(*_args, **_kwargs):
+            raise RuntimeError('In-process queue nicht verfügbar')
+
+        def get_job_status(_job_id):
+            return None
+
     try:
         import tasks as rq_tasks
         from redis import Redis
@@ -540,12 +552,10 @@ def api_download_job_result(job_id: str):
 @app.route('/api/queue_status', methods=['GET'])
 def api_queue_status():
     """Gibt Zahlen zur in-process-Queue zurück: queued, running, finished."""
-    # job_queue is module-level singleton in job_queue.py named job_q
-    try:
-        import job_queue
-        jobs = job_queue.job_q
-    except Exception:
+    if inproc_job_queue is None:
         return jsonify({'error': 'Queue nicht verfügbar'}), 503
+
+    jobs = inproc_job_queue.job_q
 
     with jobs._lock:
         counts = {'queued': jobs._tasks.qsize()}
@@ -603,6 +613,13 @@ def api_rq_job_status(job_id: str):
 def api_defaults():
     """Gibt die Standard-Parameter zurück."""
     return jsonify(DEFAULT_PARAMS)
+
+
+@app.route('/health', methods=['GET'])
+def health():
+    """Simple runtime health endpoint for container probes and monitoring."""
+    worker_mode = str(os.getenv('TERRALINES_WORKER', 'false')).lower() in {'1', 'true', 'yes', 'on'}
+    return jsonify({'status': 'ok', 'worker_mode': worker_mode})
 
 
 @app.route('/results/<path:filename>', methods=['GET'])

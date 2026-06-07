@@ -16,9 +16,54 @@ Terralines generates topographic contour patterns using fractal Brownian motion 
 
 - Python 3.10+
 - pip
-- Docker Desktop if you want to build and run the container locally
+- Docker/ -Desktop if you want to run the container locally
+
+## Project structure
+
+```
+terralines/
+├── .github/              # CI workflows, actions and configs
+├── .vscode/              # editor config (not all contents are tracked)
+├── scripts/              # helper scripts for CI and development
+├── tests/                # Unit and security regression tests
+├── app/                  # Flask server, UI, templates and assets
+│   └── templates/        # bundled presets (see Presets section)
+├── Dockerfile            # Production multi-stage container image
+├── docker-compose.yml    # Local compose setup with web, Redis and worker service
+├── requirements.txt      # runtime dependencies
+├── requirements-dev.txt  # dev dependencies (testing, linting, formatting)
+├── README.md
+└── LICENSE
+```
 
 ## Setup
+
+### Docker
+
+GHCR Image:
+
+```bash
+docker pull ghcr.io/staincabler/ltm_ptb_terralines:latest
+docker run -p 8000:8000 ghcr.io/staincabler/ltm_ptb_terralines:latest
+```
+
+Self-Build Image:
+
+```bash
+docker build -t terralines:latest .
+docker run -p 8000:8000 terralines:latest
+```
+
+### Lokal
+
+Linux Bash-Shell:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python app/app.py
+```
 
 Windows PowerShell:
 
@@ -29,37 +74,14 @@ python -m pip install -r requirements.txt
 python app/app.py
 ```
 
-If you want to start it again later, activate the venv first:
+Open `http://127.0.0.1:8000`.
 
-```powershell
-.\.venv\Scripts\Activate.ps1
-python app/app.py
-```
-
-Alternative without activating the environment:
-
-```powershell
-.venv\Scripts\python.exe -m pip install -r requirements.txt
-.venv\Scripts\python.exe app/app.py
-```
-
-Open `http://127.0.0.1:5000`.
-
-## Docker
+## Docker Images
 
 The container image is published as `ghcr.io/staincabler/ltm_ptb_terralines`.
 
 - Nightly builds run on every push and publish `nightly` plus a short SHA tag.
-- Release builds are manual only and can publish `latest` plus an optional full version tag.
-
-Local build and run:
-
-```powershell
-docker build -t ltm_ptb_terralines:local .
-docker run --rm -p 8000:8000 ltm_ptb_terralines:local
-```
-
-Open `http://127.0.0.1:8000`.
+- Release builds are manual triggered only and can publish `latest` plus an optional full version tag.
 
 ## Bekannte Sicherheitsschwachstellen
 
@@ -76,7 +98,7 @@ Die folgenden Findings sind aktuell als Ausnahme dokumentiert, weil sie sich nur
 
 ## Containerbetrieb (Docker Compose)
 
-Kurzanleitung — lokal (Produktionsnah):
+### Kurzanleitung:
 
 ```powershell
 # Build & start (erstes Mal / nach Code-Änderungen)
@@ -90,56 +112,44 @@ docker compose logs -f web
 docker compose up -d --build web
 ```
 
-Wichtiges zur Konfiguration
+### Wichtiges zur Konfiguration
 
 - `web`: Flask-Anwendung, hört auf Port `8000`. Liefert UI und API. Das Image enthält den Quellcode (kein automatisches Mount). Bei Code-Änderungen das Image neu bauen.
 - `redis`: Redis-Server (RQ-Backend).
-- `worker`: RQ-Worker, liest Jobs aus Redis, rendert asynchron (falls aktiviert) und schreibt Ergebnis-PNGs nach `TERRALINES_RESULTS_DIR`.
+- `worker`: RQ-Worker, liest Jobs aus Redis, rendert asynchron (falls aktiviert) und schreibt Ergebnis-PNGs nach `TERRALINES_RESULTS_DIR`. Der gleiche Container kann per `TERRALINES_WORKER=true` in den Worker-Modus geschaltet werden.
 - Gemeinsamer Ordner: `./tmp/terralines_results:/tmp/terralines_results` — hier schreibt der Worker persistente PNG-Dateien, die der `web`-Service ausliefert.
 
-Wichtige Umgebungsvariablen
+### Wichtige Umgebungsvariablen
 
 - `REDIS_URL` — z.B. `redis://redis:6379/0` (für `web` und `worker`).
 - `TERRALINES_RESULTS_DIR` — Verzeichnis für persistente Resultate (Container-intern: `/tmp/terralines_results`).
 - `TERRALINES_MAX_CONCURRENCY` — Anzahl paralleler Generierungen (Semaphore).
-- `MPLCONFIGDIR` — beschreibbares Verzeichnis für Matplotlib (z.B. `/tmp/matplotlib`).
 
-Dev-Workflow (schnell testen)
+**Configurable Settings**
 
-- Lokales Development ohne Image-Rebuild: binde den Quellcode in den Container (nur für lokales Debugging):
+Die folgenden Einstellungen sind zur Laufzeit konfigurierbar. Sie sind als sinnvolle Defaults im `Dockerfile` gesetzt, können aber per `docker compose` / Umgebungsvariablen oder beim Start überschrieben werden.
+
+| Typ | Name / Label | Default | Erläuterung / Mögliche Werte |
+|---:|---|---|---|
+| env | `REDIS_URL` | `redis://redis:6379/0` | URL für Redis. Auf Prod: `redis://<host>:6379/0` oder Redis-Cluster-URI |
+| env | `TERRALINES_SECRET_KEY` | `(none)` | Flask `SECRET_KEY` für Sessions/Signaturen; setze in Produktion per Secret/Env. Wird beim Containerstart generiert, falls unset. |
+| env | `TERRALINES_RATE_LIMIT_WINDOW_SECONDS` | `60` | Zeitfenster in Sekunden für Rate-Limiting (z. B. 60) |
+| env | `TERRALINES_RATE_LIMIT_MAX_REQUESTS` | `30` | Max. Anfragen pro Window (Rate-Limit), z. B. 30 |
+| env | `TERRALINES_TRUSTED_PROXIES` | `127.0.0.1,::1` | Komma-separierte Liste vertrauenswürdiger Proxy-IPs/Subnetze für `X-Forwarded-*` Header |
+| env | `TERRALINES_RESULTS_DIR` | `/tmp/terralines_results` | Ort, an dem Worker PNG-Dateien persistiert; sollte als Volume/Persistenter Speicher gemountet werden |
+| env | `TERRALINES_WORKER` | `false` | Wenn `true`, startet der Container automatisch `rq worker terralines --url <REDIS_URL>` statt des Webservers |
+| env | `TERRALINES_REDIS_WAIT_SECONDS` | `30` | Zeit in Sekunden, die der Worker beim Start auf Redis wartet, bevor er den RQ-Listener startet |
+| env | `TERRALINES_JOB_WORKERS` | `1` | Anzahl der Hintergrund-Threads der internen in-process-Queue (nur relevant, wenn in-process-Queue verwendet wird) |
+| env | `TERRALINES_MAX_CONCURRENCY` | `1` | Semaphore für parallele Generierungen (web Sync/Export) |
+| command | Worker start command | `rq worker terralines --url redis://redis:6379/0` | Standard-RQ-Worker-Aufruf; wird vom Container über `TERRALINES_WORKER=true` automatisch gestartet |
+
+Hinweis: Wenn du die Umgebungswerte in `docker-compose.yml` entfernst, nutzt der Container die im `Dockerfile` und im Entry-Point gesetzten Defaults. Die Volume-Mount `./tmp/terralines_results:/tmp/terralines_results` sollte bestehen bleiben, damit persistente Ergebnisse auch nach Container-Neustarts erhalten bleiben.
+
+Worker horizontal skalieren kannst du dann mit:
 
 ```powershell
-docker run --rm -it -p 8000:8000 -v ${PWD}:/app -v ${PWD}/tmp/terralines_results:/tmp/terralines_results \
-	--env MPLCONFIGDIR=/tmp/matplotlib \
-	python:3.12-slim-bookworm bash
-# im Container:
-pip install -r requirements.txt
-python app/app.py
+docker compose up -d --scale worker=2
 ```
-
-Production / CI
-
-- Build image in CI and push zu einer Registry (z. B. GitHub Container Registry):
-
-```powershell
-docker build -t ghcr.io/<owner>/<repo>:<tag> .
-docker push ghcr.io/<owner>/<repo>:<tag>
-```
-
-- Auf dem Server: `docker compose pull && docker compose up -d` oder orchestrieren via Kubernetes/nomad, wobei `TERRALINES_RESULTS_DIR` als persistent volume gemountet werden muss.
-
-Wie die Container zusammenarbeiten (Kurz)
-
-1. Das Frontend/`web` liefert UI und synchronen API-Endpunkt (`/api/generate`) sowie asynchrone Endpunkte (`/api/generate_async`, `/api/generate_rq`).
-2. Für leichte Lasten bearbeitet `web` Jobs in-process (Semaphore + `job_queue.py`).
-3. Für langlebige/asynchrone Jobs kann `web` Jobs in RQ/Redis enqueuen; der `worker` nimmt Jobs aus Redis, führt die Generierung durch und schreibt PNGs nach `TERRALINES_RESULTS_DIR`.
-4. `web` bietet `/results/<file>` und `/api/job/<id>/download` an, die die Dateien aus `TERRALINES_RESULTS_DIR` (oder Inline-Resultate) sicher ausliefern.
-
-Fehlerbehebung
-
-- Wenn `/results/...` 404 liefert: prüfen, ob `./tmp/terralines_results` existiert und die Datei drin ist; prüfen Sie `docker compose logs web` und `docker compose logs worker`.
-- Nach Code-Änderungen: `docker compose build web && docker compose up -d web` (weil das Image den Code enthält).
-
 
 ## Parameters
 
@@ -159,12 +169,22 @@ Colors, line widths, line styles (solid/dashed/dotted), highlight intervals, gri
 
 | Name | Description |
 |---|---|
-| Dark Minimal | Black background, tight grey lines |
-| Dark Dimmed | Slightly lighter, softer contrast |
-| Neon Pink | Dark navy with pink contours |
-| Forest | Deep green with yellow-green highlights |
-| Cyberpunk | Dark teal, cyan highlights, cross grid |
-| Kali Dark | Near-black on black, very dense lines |
+| Army Land | Layered terrain with muted army/earth tones and subtle gradients |
+| Cyberpunk | Dark teal/teal highlights with cross-grid accents and neon highlights |
+| Dark Dimmed | Slightly lighter dark theme with softer contrast and muted lines |
+| Dark Minimal | Very dark background with tight, subtle grey contours |
+| Forest | Deep green background with yellow-green highlights and optional grid overlay |
+| Kali Dark | Near-black theme with dense, high-count contour lines |
+| Neon Lavalamp | Dark gradient background with bold, colorful lava-lamp style contours |
+| Neon Pink | Dark navy background with vivid pink contour highlights |
+| Cozy Sway | Warm, swaying gradient with soft highlights and subtle grid |
+| Dark Forest | Deep layered forest tones with strong smoothing and detail |
+| Green Lands | Bright green elevation palette with rich layering |
+| Neon Sway | Neon-tinged gradient with pronounced highlights and grid accents |
+| Neon Sway 2 | Radial neon gradient variant with dense contour styling |
+| Red Dot | Dark background with focused red highlights and high-detail lines |
+| Red Lands | Warm red/orange elevation palette with bold contours |
+| Spooky | Eerie purple/pink highlights and dense, dramatic contours |
 
 ## Export
 
@@ -172,21 +192,6 @@ Click "PNG exportieren" to download the full-resolution PNG file or "SVG exporti
 
 Supported output sizes: up to 3840x2160 px at up to 300 dpi.
 
-## Project structure
-
-```
-terralines/
-├── app/             # Flask server, UI, templates and assets
-├── Dockerfile       # Minimal production container image
-├── .github/
-│   ├── dependabot.yml
-│   └── workflows/   # Nightly, release, functionality and security workflows
-├── tests/           # Unit and security regression tests
-├── requirements.txt
-└── index.html       # Legacy top-level copy of the frontend
-```
-
 ## License
-
 
 MIT

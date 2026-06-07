@@ -80,3 +80,13 @@ jobs:
           severity: 'CRITICAL,HIGH'
       - name: Push image to GHCR
         run: docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v2
+      - name: Sign image with cosign (keyless)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cosign sign --keyless ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+      - name: Verify image signature
+        run: |
+          cosign verify --certificate-identity-regexp 'https://github\.com/.+' --certificate-oidc-issuer-regexp 'https://token\.actions\.githubusercontent\.com' ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}

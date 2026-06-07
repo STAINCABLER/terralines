@@ -1,35 +1,76 @@
-version: '3.8'
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: terralines-redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
   web:
     build: .
     image: terralines-ui:latest
+    container_name: terralines-ui
+    restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
       - REDIS_URL=redis://redis:6379/0
-      - TERRALINES_JOB_WORKERS=1
-      - TERRALINES_MAX_CONCURRENCY=1
-      - MPLCONFIGDIR=/tmp/matplotlib
-      - TERRALINES_RESULTS_DIR=/tmp/terralines_results
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     volumes:
-      - ./tmp/terralines_results:/tmp/terralines_results
+      - worker_cache:/tmp/terralines_results
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import json, urllib.request, sys; body=urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2).read().decode('utf-8'); sys.exit(0 if json.loads(body).get('status')=='ok' else 1)\""]
+      interval: 10s
+      timeout: 3s
+      retries: 10
 
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-
-  worker:
+  worker1:
     build: .
     image: terralines-worker:latest
-    command: rq worker terralines --url redis://redis:6379/0
+    container_name: terralines-worker1
+    restart: unless-stopped
     environment:
+      - TERRALINES_WORKER=true
       - REDIS_URL=redis://redis:6379/0
-      - PYTHONPATH=/app
-      - MPLCONFIGDIR=/tmp/matplotlib
-      - TERRALINES_RESULTS_DIR=/tmp/terralines_results
     volumes:
-      - ./tmp/terralines_results:/tmp/terralines_results
+      - worker_cache:/tmp/terralines_results
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "tr '\\0' ' ' < /proc/1/cmdline | grep -q 'rq worker terralines'"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  worker2:
+    build: .
+    image: terralines-worker:latest
+    container_name: terralines-worker2
+    restart: unless-stopped
+    environment:
+      - TERRALINES_WORKER=true
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - worker_cache:/tmp/terralines_results
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "tr '\\0' ' ' < /proc/1/cmdline | grep -q 'rq worker terralines'"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  worker_cache:
+    driver: local
+    name: terralines-worker-cache
+  terralines-templates:
+    driver: local
+    name: ptb-ltm-terralines-templates

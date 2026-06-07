@@ -10,7 +10,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# Set environment variables for build-time configuration
 ENV MPLCONFIGDIR=/tmp/matplotlib
+ENV TERRALINES_RESULTS_DIR=/tmp/terralines_results
+ENV PYTHONPATH=/app
 
 # Refresh Debian packages in the build stage so the runtime image inherits current security fixes.
 RUN apt-get update \
@@ -63,7 +66,20 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy only the compiled runtime artefacts and static files.
 COPY --from=terralines-builder /app /app
+COPY ./docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 WORKDIR /app
+
+# Set environment variables for runtime configuration
+ENV MPLCONFIGDIR=/tmp/matplotlib
+ENV TERRALINES_RESULTS_DIR=/tmp/terralines_results
+ENV PYTHONPATH=/app
+
+ENV TERRALINES_JOB_WORKERS=1
+ENV TERRALINES_MAX_CONCURRENCY=1
+ENV TERRALINES_RATE_LIMIT_WINDOW_SECONDS=60
+ENV TERRALINES_RATE_LIMIT_MAX_REQUESTS=30
+ENV TERRALINES_TRUSTED_PROXIES="127.0.0.1,::1"
 
 # Create results dir with correct ownership
 RUN mkdir -p ${TERRALINES_RESULTS_DIR} && chown 10001:10001 ${TERRALINES_RESULTS_DIR}
@@ -72,9 +88,8 @@ EXPOSE 8000
 
 USER appuser
 
-# Runtime command: gunicorn with conservative workers + threads and output capture
-CMD ["gunicorn", "--workers", "1", "--threads", "2", "--timeout", "120", "--capture-output", "--log-level", "info", "--bind", "0.0.0.0:8000", "app:app"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 # Healthcheck
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=5 \
-    CMD python -c "import urllib.request, sys;\ntry:\n    urllib.request.urlopen('http://127.0.0.1:8000/', timeout=2)\nexcept Exception:\n    sys.exit(1)"
+    CMD /bin/sh -c 'if [ "${TERRALINES_WORKER:-false}" = "true" ]; then exit 0; fi; python -c "import json, urllib.request, sys;\ntry:\n    body = urllib.request.urlopen(\"http://127.0.0.1:8000/health\", timeout=2).read().decode(\"utf-8\")\n    data = json.loads(body)\n    sys.exit(0 if data.get(\"status\") == \"ok\" else 1)\nexcept Exception:\n    sys.exit(1)"'
