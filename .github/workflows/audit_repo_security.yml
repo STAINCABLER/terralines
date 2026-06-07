@@ -36,7 +36,7 @@ jobs:
       - name: Install audit tools
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
+          python -m pip install -r requirements-dev.txt
           python -m pip install pip-audit bandit
 
       - name: Run dependency audit
@@ -46,4 +46,4 @@ jobs:
         run: bandit -r app -ll
 
       - name: Run security regression tests
-        run: python -m unittest discover -s tests -v
+        run: python -m pytest -q

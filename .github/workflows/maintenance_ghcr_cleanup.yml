@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Cleanup old PR/Nightly images in GHCR
-        uses: actions/github-script@v6
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');
@@ -42,16 +42,24 @@ jobs:
             }
             for (const packageName of packageNames) {
               let versions = [];
-              if (isOrg) {
-                const resp = await github.rest.packages.listPackageVersionsForPackageOwnedByOrg({ org: owner, package_type: 'container', package_name: packageName, per_page: 100 });
-                versions = resp.data || [];
-              } else {
-                const resp = await github.request('GET /users/{username}/packages/container/{package_name}/versions', {
-                  username: owner,
-                  package_name: packageName,
-                  per_page: 100
-                });
-                versions = resp.data || [];
+              try {
+                if (isOrg) {
+                  const resp = await github.rest.packages.listPackageVersionsForPackageOwnedByOrg({ org: owner, package_type: 'container', package_name: packageName, per_page: 100 });
+                  versions = resp.data || [];
+                } else {
+                  const resp = await github.request('GET /users/{username}/packages/container/{package_name}/versions', {
+                    username: owner,
+                    package_name: packageName,
+                    per_page: 100
+                  });
+                  versions = resp.data || [];
+                }
+              } catch (e) {
+                if (e.status === 404) {
+                  core.warning(`Package '${packageName}' not found for owner '${owner}', skipping`);
+                  continue;
+                }
+                throw e;
               }
               for (const v of versions) {
                 const created = new Date(v.created_at);

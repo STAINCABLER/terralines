@@ -8,6 +8,7 @@ on:
 permissions:
   contents: read
   packages: write
+  id-token: write
 
 jobs:
   build-and-scan-nightly:
@@ -63,12 +64,12 @@ jobs:
       - name: Push nightly image to GHCR
         run: docker push ghcr.io/staincabler/ltm_ptb_terralines:nightly-${{ github.run_id }}
       - name: Install cosign
-        uses: sigstore/cosign-installer@v2
+        uses: sigstore/cosign-installer@v3
       - name: Sign nightly image with cosign (keyless)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cosign sign --keyless ghcr.io/staincabler/ltm_ptb_terralines:nightly-${{ github.run_id }}
+          cosign sign --yes ghcr.io/staincabler/ltm_ptb_terralines:nightly-${{ github.run_id }}
       - name: Verify nightly image signature
         run: |
           cosign verify --certificate-identity-regexp 'https://github\.com/.+' --certificate-oidc-issuer-regexp 'https://token\.actions\.githubusercontent\.com' ghcr.io/staincabler/ltm_ptb_terralines:nightly-${{ github.run_id }}
