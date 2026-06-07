@@ -81,7 +81,7 @@ jobs:
       - name: Push image to GHCR
         run: docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
       - name: Install cosign
-        uses: sigstore/cosign-installer@v2
+        uses: sigstore/cosign-installer@v3
       - name: Sign image with cosign (keyless)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

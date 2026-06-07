@@ -121,7 +121,7 @@ jobs:
           asset_name: sbom.json
           asset_content_type: application/json
       - name: Install cosign
-        uses: sigstore/cosign-installer@v2
+        uses: sigstore/cosign-installer@v3
       - name: Attest SBOM with cosign
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
