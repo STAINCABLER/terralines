@@ -20,7 +20,7 @@ jobs:
   build-and-publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Run pip-audit (collect)
         run: |
           python -m pip install --upgrade pip
